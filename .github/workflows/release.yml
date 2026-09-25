@@ -59,7 +59,10 @@ jobs:
 
       - name: Install Wails CLI
         run: |
-          go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+          # The CLI links the Wails operatingsystem package; -tags gtk3 selects
+          # the GTK3/WebKit2GTK-4.1 backend this project targets (the default
+          # build expects GTK4/WebKitGTK-6.0).
+          go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Build
@@ -96,17 +99,27 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # Needed even for the cross-build: the Wails CLI and the binding generator
+      # type-check the app on the Linux host, where -tags gtk3 selects the
+      # GTK3/WebKit2GTK-4.1 backend.
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+
       - name: Install Wails CLI
         run: |
-          go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+          go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       # Cross-compiled from Linux: the robotgo backends are pure Go and Wails
-      # needs no CGO on Windows.
+      # needs no CGO on Windows. EXTRA_TAGS=gtk3 keeps the host-side binding
+      # generation on the GTK3 backend instead of the default GTK4 one.
       - name: Build
         env:
           VERSION: ${{ needs.version.outputs.version }}
           CGO_ENABLED: "0"
+          EXTRA_TAGS: "gtk3"
         run: wails3 build GOOS=windows
 
       - name: Collect binary

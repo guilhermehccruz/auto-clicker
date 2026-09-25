@@ -1368,6 +1368,9 @@ Design choices:
   run page also offers a download (artifacts expire after 90 days; releases do not).
 - **Windows is cross-compiled from Linux**, so no Windows runner is needed. (macOS would
   require a macOS runner — another reason it is out of scope.)
+- The Wails CLI is installed with `-tags gtk3` (and both jobs install the GTK3/WebKit2GTK
+  dev packages) because the CLI and the host-side binding generator type-check the app on
+  Linux, where the default backend would demand GTK4/WebKitGTK-6.0.
 - Both build jobs keep their artifacts even if the other fails, so a Linux failure does
   not hide the Windows binary.
 - `package` depends on both, so the release only appears complete or not at all.
