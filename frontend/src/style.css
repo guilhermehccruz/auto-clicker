@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* DESIGN §5.1: dark-first, dense, 13px base. */
+:root {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  /* Make native controls (scrollbars, number spinners, any remaining select)
+     render dark in WebKitGTK. */
+  color-scheme: dark;
+}
+
+/* Belt-and-braces for any native select left in the tree. */
+select,
+option {
+  color-scheme: dark;
+  background-color: #262626;
+  color: #e5e5e5;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Respect reduced motion for drag animations. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

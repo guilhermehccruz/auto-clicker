@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Wails' GTK3/WebKit2GTK-4.1 backend (-tags gtk3) needs these headers even
+      # for `go vet` / `go test`, because main.go links the Wails application
+      # package.
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Check gofmt
+        run: |
+          files=$(gofmt -l .)
+          if [ -n "$files" ]; then
+            echo "These files are not gofmt'd:"
+            echo "$files"
+            exit 1
+          fi
+
+      # main.go embeds frontend/dist. The frontend is built in the other job, so
+      # here a placeholder is enough to satisfy the embed directive.
+      - name: Provide frontend/dist placeholder
+        run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+
+      - name: go vet
+        run: go vet -tags gtk3 ./...
+
+      - name: go build
+        run: go build -tags gtk3 ./...
+
+      - name: go test
+        run: go test -tags gtk3 ./...
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npx vite build --mode production
