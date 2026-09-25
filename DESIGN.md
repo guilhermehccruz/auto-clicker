@@ -1351,26 +1351,29 @@ wails3 build GOOS=windows    # Windows → bin/auto-clicker.exe (cross-compiled 
 Both compile the frontend, regenerate bindings, embed `frontend/dist`, and print the output
 path. `wails3 build GOOS=linux` is the explicit Linux form.
 
-### `release.yml` — on tag `v*` (plus `workflow_dispatch`)
+### `release.yml` — on push to `main`, tag `v*`, or `workflow_dispatch`
 
 | Job | Runner | Steps |
 |---|---|---|
+| `version` | `ubuntu-latest` | resolve the release tag: a pushed tag is used verbatim (`v1.2.3`); a branch/dispatch build gets `v0.1.<run_number>` |
 | `build-linux` | `ubuntu-latest` | install `build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev` → setup Go + Node → `wails3 build` (`GOOS=linux`) → upload artifact |
 | `build-windows` | `ubuntu-latest` | cross-compile `wails3 build GOOS=windows` with `CGO_ENABLED=0` — possible *because* the robotgo backends are pure Go and Wails needs no CGO on Windows → upload artifact |
-| `package` | `ubuntu-latest` | needs both → name them `auto-clicker_<version>_linux_amd64.tar.gz` and `auto-clicker_<version>_windows_amd64.zip` (binary + short README) → `softprops/action-gh-release` with `draft: true` |
+| `package` | `ubuntu-latest` | needs both → name them `auto-clicker_<version>_linux_amd64.tar.gz` and `auto-clicker_<version>_windows_amd64.zip` (binary + short README) → `softprops/action-gh-release` **published** (`draft: false`, `make_latest: true`) |
 
 Design choices:
-- **Draft release first.** The release exists on the page, you smoke-test it, then press
-  Publish. A broken build never becomes the thing a user downloads.
+- **Publish directly.** Every push to `main` builds both OS binaries and publishes a
+  GitHub Release, so they are downloadable from the Releases page without a tag step.
+  Pushing a tag (`v*`) publishes a semantic version instead of the auto-increment.
+- **Workflow artifacts too.** Both jobs upload their binary as a workflow artifact, so a
+  run page also offers a download (artifacts expire after 90 days; releases do not).
 - **Windows is cross-compiled from Linux**, so no Windows runner is needed. (macOS would
   require a macOS runner — another reason it is out of scope.)
 - Both build jobs keep their artifacts even if the other fails, so a Linux failure does
   not hide the Windows binary.
 - `package` depends on both, so the release only appears complete or not at all.
-- Version comes from the tag (`github.ref_name`), exported as the `VERSION` environment
-  variable. The platform Taskfiles append `-X main.version=$VERSION` to `-ldflags` when
-  `VERSION` is set, so the About/diagnostics panel reports it and plain local builds
-  keep the `dev` default.
+- Version is exported as the `VERSION` environment variable. The platform Taskfiles append
+  `-X main.version=$VERSION` to `-ldflags` when `VERSION` is set, so the
+  About/diagnostics panel reports it and plain local builds keep the `dev` default.
 
 ---
 

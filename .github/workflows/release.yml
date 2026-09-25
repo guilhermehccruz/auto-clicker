@@ -2,6 +2,7 @@ name: Release
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -14,8 +15,28 @@ env:
   NODE_VERSION: "22"
 
 jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - id: resolve
+        name: Resolve version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            # A pushed tag is the version, e.g. v1.2.3.
+            version="${GITHUB_REF_NAME}"
+          else
+            # Auto-version every main/dispatch build so the release tag is unique.
+            version="v0.1.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: ${version}"
+
   build-linux:
     name: Build Linux
+    needs: version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,17 +64,23 @@ jobs:
 
       - name: Build
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: wails3 build GOOS=linux
+
+      - name: Collect binary
+        run: |
+          mkdir -p out
+          cp bin/auto-clicker out/
 
       - uses: actions/upload-artifact@v4
         with:
           name: auto-clicker-linux
-          path: bin/auto-clicker
+          path: out/
           if-no-files-found: error
 
   build-windows:
     name: Build Windows
+    needs: version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -78,19 +105,24 @@ jobs:
       # needs no CGO on Windows.
       - name: Build
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ needs.version.outputs.version }}
           CGO_ENABLED: "0"
         run: wails3 build GOOS=windows
+
+      - name: Collect binary
+        run: |
+          mkdir -p out
+          cp bin/auto-clicker.exe out/
 
       - uses: actions/upload-artifact@v4
         with:
           name: auto-clicker-windows
-          path: bin/auto-clicker.exe
+          path: out/
           if-no-files-found: error
 
   package:
-    name: Package release
-    needs: [build-linux, build-windows]
+    name: Publish release
+    needs: [version, build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -104,9 +136,10 @@ jobs:
           path: dist/windows
 
       - name: Build archives
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME}"
 
           cat > README.txt <<'EOF'
           Auto Clicker
@@ -118,21 +151,24 @@ jobs:
           cp dist/linux/auto-clicker linux/
           chmod +x linux/auto-clicker
           cp README.txt linux/
-          tar -C linux -czf "auto-clicker_${version}_linux_amd64.tar.gz" auto-clicker README.txt
+          tar -C linux -czf "auto-clicker_${VERSION}_linux_amd64.tar.gz" auto-clicker README.txt
 
           mkdir -p windows
           cp dist/windows/auto-clicker.exe windows/
           cp README.txt windows/
-          (cd windows && zip -q "auto-clicker_${version}_windows_amd64.zip" auto-clicker.exe README.txt)
+          (cd windows && zip -q "auto-clicker_${VERSION}_windows_amd64.zip" auto-clicker.exe README.txt)
 
           ls -l auto-clicker_*.tar.gz auto-clicker_*.zip
 
-      # Draft first: the release appears on the page, you smoke-test the
-      # binaries, then publish it manually.
+      # Publishes directly (not a draft) so the binaries are downloadable from
+      # the Releases page as soon as the build finishes.
       - uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          tag_name: ${{ needs.version.outputs.version }}
+          name: ${{ needs.version.outputs.version }}
+          draft: false
+          make_latest: true
           generate_release_notes: true
           files: |
-            auto-clicker_${{ github.ref_name }}_linux_amd64.tar.gz
-            auto-clicker_${{ github.ref_name }}_windows_amd64.zip
+            auto-clicker_${{ needs.version.outputs.version }}_linux_amd64.tar.gz
+            auto-clicker_${{ needs.version.outputs.version }}_windows_amd64.zip

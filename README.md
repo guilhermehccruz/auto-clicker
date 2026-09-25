@@ -55,4 +55,5 @@ cd frontend && npm test
 
 The MVP is implemented and covered by unit tests. See [`DESIGN.md`](./DESIGN.md) for the
 full specification, architecture, and roadmap. CI and release workflows live in
-[`.github/workflows/`](./.github/workflows/).
+[`.github/workflows/`](./.github/workflows/); every push to `main` publishes a GitHub
+Release with Linux and Windows builds ready to download.
