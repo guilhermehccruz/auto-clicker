@@ -148,6 +148,9 @@ jobs:
           name: auto-clicker-windows
           path: dist/windows
 
+      - name: Ensure zip is available
+        run: command -v zip >/dev/null || (sudo apt-get update && sudo apt-get install -y zip)
+
       - name: Build archives
         env:
           VERSION: ${{ needs.version.outputs.version }}
@@ -169,7 +172,9 @@ jobs:
           mkdir -p windows
           cp dist/windows/auto-clicker.exe windows/
           cp README.txt windows/
-          (cd windows && zip -q "auto-clicker_${VERSION}_windows_amd64.zip" auto-clicker.exe README.txt)
+          # -j junks the paths so the archive lands in the working directory,
+          # next to the Linux tarball (action-gh-release uploads from here).
+          zip -q -j "auto-clicker_${VERSION}_windows_amd64.zip" windows/auto-clicker.exe windows/README.txt
 
           ls -l auto-clicker_*.tar.gz auto-clicker_*.zip
 
