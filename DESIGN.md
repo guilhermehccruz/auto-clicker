@@ -220,9 +220,11 @@ Exact patch versions live in the lockfile; CI uses the pinned Node major
 - **README** carries the support-load-bearing notes in [§6](#6-safety) (anti-cheat,
   fullscreen games, Wayland consent, physical-pixel coordinates) plus download, first-run
   and "which backend am I on" guidance.
-- **App icon**: one 256×256 PNG (`build/appicon.png`) plus the per-OS derivatives Wails
-  generates. The window and taskbar icon ship from it; there is no separate branding pass
-  in v1.
+- **App icon**: one PNG (`build/appicon.png`). Wails derives `build/windows/icon.ico`
+  from it at build time (macOS icons are out of scope), and a 256×256 copy
+  (`internal/desktop/icon.png`) is embedded in the binary for the Linux launcher icon
+  ([§3.6](#36-platform-scope)). The window and taskbar icon ship from the derived `.ico`;
+  there is no separate branding pass in v1.
 
 ---
 
@@ -431,6 +433,13 @@ for a `displays[]` array later.
 | Other Wayland compositors | unsupported (no libei portal guarantee, no tested grab) |
 | X11 sessions | supported via `x11` + `XGrabKey` |
 | macOS | out of scope |
+
+On Linux the app registers itself in the desktop's application search on first launch:
+it writes `~/.local/share/applications/auto-clicker.desktop` and the hicolor icon
+`~/.local/share/icons/hicolor/256x256/apps/auto-clicker.png` (idempotent, best-effort,
+never fatal). This is also what lets the GlobalShortcuts portal resolve the app
+([Appendix B.4](#appendix-b-global-shortcuts-portal-gotchas)); the launcher entry and the
+portal registration intentionally share the `auto-clicker` id.
 
 ### 3.7 Example profile
 
@@ -701,6 +710,10 @@ are dropped.
 ### 4.5 Startup and shutdown
 
 Order matters; this is the sequence `main.go` follows.
+
+On Linux, before this sequence the app installs/refreshes its launcher entry
+([§3.6](#36-platform-scope)) as a best-effort step. It starts no service and is never
+fatal, so a failure only logs.
 
 **Startup**
 1. **Acquire the single-instance lock** ([§6](#6-safety)) before any service starts. If it
@@ -1039,6 +1052,8 @@ internal/store/              profile/settings paths, atomic writes, dir listing,
 internal/logging/            structured log + rotation in the OS state dir;
                              diagnostics tail
 internal/hotkey/             HotkeySource: portal_linux.go / x11_linux.go / win_windows.go
+internal/desktop/            Linux launcher entry (.desktop + hicolor icon) written on
+                             startup; no-op elsewhere
 internal/service/            operation surface the UI binds to (§7.2); no Wails import
 frontend/                    React + TS app (see below); built to frontend/dist and
                              embedded by main.go
@@ -1502,7 +1517,8 @@ cost a debugging session each. Verified against `xdg-desktop-portal` 1.21.1 sour
    - **`org.freedesktop.host.portal.Registry.Register` needs a matching `.desktop` file.**
      For an unsandboxed app it fails with `App info not found for '<id>'` unless
      `~/.local/share/applications/<id>.desktop` exists; with it, `Register` succeeds and the
-     shortcut component is named `<id>`.
+     shortcut component is named `<id>`. The app writes that file itself on startup
+     ([§3.6](#36-platform-scope)) rather than relying on the user to install one.
    - **Launching from a snap terminal poisons the app id.** The child process inherits the
      snap cgroup (`/proc/<pid>/cgroup` → `snap.<name>.scope`), so the portal treats the app
      as sandboxed: `Registry.Register` is refused (`Can't manually register a

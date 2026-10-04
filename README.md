@@ -15,7 +15,8 @@ itch. It is not a general-purpose product and it is not trying to become one.
 - Run once, N times, or forever, with drift-free timing.
 - Profiles with autosave, optional groups, a global panic hotkey, and a runtime cap.
 - Ships as one desktop binary per OS (Linux + Windows), no installer and no runtime
-  dependencies beyond the OS webview.
+  dependencies beyond the OS webview. On Linux the app adds itself to the application
+  menu on first run (a `.desktop` entry), so it launches like any other app.
 
 ## Stack
 

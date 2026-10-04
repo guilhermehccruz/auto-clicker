@@ -11,6 +11,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"auto-clicker/internal/desktop"
 	"auto-clicker/internal/engine"
 	"auto-clicker/internal/logging"
 	"auto-clicker/internal/service"
@@ -35,6 +36,13 @@ func main() {
 	configDir, err := store.ConfigDir()
 	if err != nil {
 		log.Fatalf("config dir: %v", err)
+	}
+
+	// Register a launcher entry on Linux so the app appears in the desktop's
+	// application search (and the GlobalShortcuts portal can find its .desktop
+	// file). Best-effort: never block startup on it.
+	if err := desktop.Ensure(); err != nil {
+		log.Printf("desktop integration: %v", err)
 	}
 
 	// Single-instance lock before any service starts (DESIGN §4.5).
