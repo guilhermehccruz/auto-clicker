@@ -8,8 +8,10 @@ package main
 import (
 	"embed"
 	"log"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"auto-clicker/internal/desktop"
 	"auto-clicker/internal/engine"
@@ -55,6 +57,10 @@ func main() {
 	// app is running.
 	var app *application.App
 	var mainWin *application.WebviewWindow
+	// saveGeometry persists the window geometry; assigned once the window
+	// exists, and called from OnShutdown.
+	var saveGeometry func()
+	var geomTimer *time.Timer
 	svc, err := service.New(service.Options{
 		Version:   version,
 		ConfigDir: configDir,
@@ -89,8 +95,14 @@ func main() {
 			Handler: application.BundledAssetFileServer(assets),
 		},
 		OnShutdown: func() {
-			// Stop the run (releases inputs), flush autosave, unregister
-			// hotkeys, drop lock.
+			// Persist the window geometry, stop the run (releases inputs),
+			// unregister hotkeys, drop lock.
+			if geomTimer != nil {
+				geomTimer.Stop()
+			}
+			if saveGeometry != nil {
+				saveGeometry()
+			}
 			_ = svc.Stop()
 			_ = svc.CloseHotkeys()
 			if lock != nil {
@@ -116,12 +128,54 @@ func main() {
 	// The picker has no window of its own: the countdown runs inside this
 	// window and the service captures the real cursor after PickCountdown
 	// (DESIGN §5.7). This avoids Wayland's window positioning/focus limits.
-	mainWin = app.Window.NewWithOptions(application.WebviewWindowOptions{
+	//
+	// Restore the saved geometry, falling back to 1100×720 centered.
+	winOpts := application.WebviewWindowOptions{
 		Title:  "Auto Clicker",
 		Width:  1100,
 		Height: 720,
 		URL:    "/",
-	})
+	}
+	if saved := svc.GetSettings().Window; saved.W > 0 && saved.H > 0 {
+		winOpts.Width, winOpts.Height = saved.W, saved.H
+		if saved.X != 0 || saved.Y != 0 {
+			winOpts.InitialPosition = application.WindowXY
+			winOpts.X, winOpts.Y = saved.X, saved.Y
+		}
+		if saved.Maximized {
+			winOpts.StartState = application.WindowStateMaximised
+		}
+	}
+	mainWin = app.Window.NewWithOptions(winOpts)
+
+	// Persist geometry on move/resize/maximise, debounced so a drag does not
+	// hammer the disk. OnShutdown saves once more.
+	saveGeometry = func() {
+		w, h := mainWin.Size()
+		if w <= 0 || h <= 0 {
+			return
+		}
+		x, y := mainWin.Position()
+		st := svc.GetSettings()
+		st.Window = store.Window{X: x, Y: y, W: w, H: h, Maximized: mainWin.IsMaximised()}
+		if err := svc.SaveSettings(st); err != nil {
+			log.Printf("save window geometry: %v", err)
+		}
+	}
+	scheduleSave := func() {
+		if geomTimer != nil {
+			geomTimer.Stop()
+		}
+		geomTimer = time.AfterFunc(500*time.Millisecond, saveGeometry)
+	}
+	for _, ev := range []events.WindowEventType{
+		events.Common.WindowDidMove,
+		events.Common.WindowDidResize,
+		events.Common.WindowMaximise,
+		events.Common.WindowUnMaximise,
+	} {
+		mainWin.OnWindowEvent(ev, func(*application.WindowEvent) { scheduleSave() })
+	}
 
 	// Register global hotkeys off the UI thread: the portal may show a consent
 	// dialog and the D-Bus reply is deferred until it is answered.

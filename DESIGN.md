@@ -734,7 +734,10 @@ fatal, so a failure only logs.
 3. Resolve and create the profiles dir, list profiles, restore `selectedProfile` (falling
    back to the first), and create the first-run template if the folder is empty
    ([§3.11](#311-first-run-and-profile-creation)).
-4. Show the main window with the restored geometry.
+4. Show the main window with the restored geometry. The window position, size and
+   maximised state come from `settings.window`, falling back to **1100×720 centered** on
+   first run. They are written back on move/resize/maximise (debounced) and once more on
+   shutdown ([§3.10](#310-app-settings-schema)).
 5. **Initialize the input backend and probe capabilities on a background goroutine.** The
    UI renders immediately with Run disabled and a "preparing input…" note; it enables Run
    when the driver is ready. On Wayland the order is the one in
@@ -750,10 +753,11 @@ fatal, so a failure only logs.
    [§4.1](#41-hotkeys-global--they-work-while-the-game-has-focus).
 
 **Shutdown** (window closed / app quit / OS logout), in this order:
-1. If a run is active, cancel it with **Stop** semantics and `ReleaseAll()` — inputs are
+1. Persist the window geometry (position, size, maximised).
+2. If a run is active, cancel it with **Stop** semantics and `ReleaseAll()` — inputs are
    released *before* the driver is closed ([§6](#6-safety)).
-2. Flush any pending debounced autosave ([§5.3](#53-module-card)).
-3. Unregister hotkeys, close the driver, release the lock.
+3. Flush any pending debounced autosave ([§5.3](#53-module-card)).
+4. Unregister hotkeys, close the driver, release the lock.
 
 A crash cannot skip step 1 in a way that strands a held button, because the engine holds
 buttons only within a single click and `ReleaseAll` is deferred on every exit path; the OS
