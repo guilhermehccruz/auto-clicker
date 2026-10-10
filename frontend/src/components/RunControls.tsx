@@ -9,7 +9,6 @@ export function RunControls({
   onStop,
   onPause,
   onResume,
-  onPanic,
 }: {
   state: RunState;
   canRun: boolean;
@@ -18,7 +17,6 @@ export function RunControls({
   onStop: () => void;
   onPause: () => void;
   onResume: () => void;
-  onPanic: () => void;
 }) {
   const idle = state === "idle";
   const paused = state === "paused";
@@ -50,15 +48,6 @@ export function RunControls({
         className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 enabled:hover:bg-neutral-800 disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-indigo-500"
       >
         {paused ? "▶ Resume" : "⏸ Pause"} <span className="mono text-[11px] opacity-70">F9</span>
-      </button>
-      <button
-        type="button"
-        onClick={onPanic}
-        disabled={idle}
-        title="Panic (Ctrl+Shift+F12)"
-        className="rounded border border-rose-600/50 px-2 py-1.5 text-rose-400 enabled:hover:bg-rose-600/10 disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-indigo-500"
-      >
-        Panic
       </button>
     </div>
   );

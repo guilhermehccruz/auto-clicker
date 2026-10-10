@@ -38,7 +38,6 @@ export interface Api {
   stop(): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
-  panic(): Promise<void>;
   status(): Promise<Progress>;
 
   getSettings(): Promise<Settings>;

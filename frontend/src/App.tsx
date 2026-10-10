@@ -34,7 +34,10 @@ export default function App() {
 
   const runOrStop = () => {
     if (runner.progress.state === "idle") {
-      if (canRun && profiles.selectedId) void runner.run(profiles.selectedId);
+      const id = profiles.selectedId;
+      // Flush the debounced autosave first: the runner loads the profile from
+      // disk, so an unsaved loop-mode/edit change would otherwise be ignored.
+      if (canRun && id) void profiles.flush().then(() => runner.run(id));
     } else {
       void runner.stop();
     }
@@ -194,6 +197,7 @@ export default function App() {
                     if (name) profiles.addGroup(name);
                   }}
                   onRenameGroup={profiles.renameGroup}
+                  onUpdateGroup={profiles.updateGroup}
                   onSetGroupEnabled={profiles.setGroupEnabled}
                   onRemoveGroup={profiles.removeGroup}
                   onMoveGroup={profiles.moveGroup}
@@ -218,7 +222,6 @@ export default function App() {
         onStop={() => void runner.stop()}
         onPause={() => void runner.pause()}
         onResume={() => void runner.resume()}
-        onPanic={() => void runner.panic()}
       />
 
       {pickActive && (

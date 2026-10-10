@@ -34,7 +34,7 @@ lost.
 - Fast, drag-and-drop UI: profiles sidebar + flat module list + telemetry bar.
 - Ships as **one executable per OS** (Linux + Windows), no installer, no runtime deps
   beyond the OS webview.
-- Safe: global panic hotkey, runtime cap, no data loss, no single-instance conflicts.
+- Safe: global stop hotkey, runtime cap, no data loss, no single-instance conflicts.
 
 ### Non-Goals
 - **Implicit / fallback runs.** There is no "if nothing is enabled, just click" mode.
@@ -43,8 +43,8 @@ lost.
 - **Keyboard, typing, scroll, hotkey actions.** This is *just* an autoclicker. A general
   macro builder is a different product.
 - Input recorder, image/vision triggers, OCR, window binding.
-- **A global CPS knob.** Rate is expressed by module fields (`holdMs`, `clickInterval`,
-  `delayAfter`) and the profile's `loopDelay`. Nothing else sets the rate.
+- **A global CPS knob.** Rate is expressed by module fields (`holdMs`, `delayAfter`)
+  and the profile's `loopDelay`. Nothing else sets the rate.
 - Parallel/concurrent lanes — strictly sequential.
 - Mobile/ADB automation, browser/DOM automation.
 - macOS, and Linux desktops other than KDE/Wayland + X11 sessions (see
@@ -234,15 +234,16 @@ Exact patch versions live in the lockfile; CI uses the pinned Node major
 Profile  (one .json file — e.g. "idle-tycoon.json"; the filename IS the profile id)
  ├── loop, failsafe, display snapshot
  └── modules[]   ordered; each = ONE click step
-      ├── kind (reserved), id, name, enabled, delayAfter
+      ├── kind (reserved), id, name, enabled
       ├── target: absolute{x,y} | cursor
-      └── button, count, clickInterval, holdMs
+      └── button, count, holdMs, delayAfter
 ```
 
 A module is a **single click step**, not a container of mixed actions. Waits are
-*fields*, not steps: `holdMs` inside a click, `clickInterval` between a module's clicks,
-`delayAfter` after the module, `loopDelay` between passes. To insert a pause, raise the
-preceding module's `delayAfter` — there is no standalone "wait" module.
+*fields*, not steps: `holdMs` inside a click, `delayAfter` after **every** click (so it is
+both the inter-click gap and the gap to the next module), `loopDelay` between passes, and
+the group's `delayAfter` between groups. To insert a pause, raise the preceding module's
+`delayAfter` — there is no standalone "wait" module.
 
 ### 3.1 Execution semantics
 
@@ -252,30 +253,37 @@ preceding module's `delayAfter` — there is no standalone "wait" module.
    UI already shows why, so no toast is needed while the app is unfocused.
 2. On Run, the runner takes a **snapshot** (deep copy) of the profile. The runner never
    reads state the UI could be mutating.
-3. Enabled modules are **flattened in list order** into one click queue: ungrouped modules
+3. Enabled modules are **flattened in list order** into an execution plan: ungrouped modules
    first, then each enabled group's modules in order ([§3.12](#312-groups)). Disabled
    modules and modules in disabled groups are skipped entirely but keep their position.
-4. The queue executes per the profile's loop mode:
+   Each group runs its block **`repeat` times** (its own loop) before the next group, and
+   its `delayAfter` (ms) spaces it from the following group.
+4. The plan executes per the profile's loop mode:
    - `once` — one pass, then stop.
    - `count` — N passes, `loopDelay` between passes.
-   - `forever` — passes until Stop/Panic.
+   - `forever` — passes until Stop.
 5. **The UI is locked while running**: toggles, reordering and editing are disabled; only
-   Stop / Pause / Panic are live. No mid-run mutation logic exists at all.
+   Stop / Pause are live. No mid-run mutation logic exists at all.
 
-A **pass** is, for each enabled module in order:
+A **pass** walks the plan; within it, a group is its own loop:
 
 ```
-for k in 0 .. count-1:
-    resolve target
-    if target is absolute: Move(x, y)        # instant, no animation
-    if target is cursor:   (no motion)
-    ButtonDown(button); sleep(holdMs); ButtonUp(button)
-    if k < count-1: sleep(clickInterval)
-sleep(delayAfter)
+for pass in loop:
+    for block in plan:                 # ungrouped first, then each enabled group
+        for r in 0 .. block.repeat-1:  # ungrouped repeat is always 1
+            for m in block.modules:
+                resolve target
+                if absolute: Move(x, y)          # instant, no animation
+                if cursor:   (no motion)
+                ButtonDown(m.button); sleep(m.holdMs); ButtonUp(m.button)
+                sleep(m.delayAfter)              # after EVERY click
+        if block is a group and not the last block: sleep(block.delayAfter)
+    if more passes: sleep(loopDelay)
 ```
 
 Between consecutive passes: `sleep(loopDelay)` (a fixed value or a random `{min,max}`
-window). `loopDelay` is **not** applied after the final pass of a `count` run.
+window). `loopDelay` is **not** applied after the final pass of a `count` run, and the
+last group's `delayAfter` is skipped because the loop delay already covers the gap.
 
 ### 3.2 Timing
 
@@ -283,14 +291,12 @@ window). `loopDelay` is **not** applied after the final pass of a `count` run.
   `next = next + interval; sleepUntil(next)` — never `sleep(interval)` — so drift does
   not accumulate over thousands of clicks. Measured in the spike: p95 lateness ≈ 1 ms at
   10–20 CPS, drift −39 ms over 2.5 s.
-- Every sleep is **interruptible** via context, so Stop/Panic halts **before** the next
+- Every sleep is **interruptible** via context, so Stop halts **before** the next
   click is injected rather than after the current sleep. Measured stop latency: ~9 ms at
   50 CPS.
-- `clickInterval` is an **additional pause after the click completes**: `holdMs` elapses
-  (down → up), *then* the engine waits `clickInterval` before the next click. The period is
-  therefore `holdMs + clickInterval` (plus backend overhead), so raising `holdMs` lowers the
-  rate instead of eating into the gap. `clickInterval = 0` means "as soon as the release
-  lands".
+- `delayAfter` is a pause **after every click**, including the last one. So it sets both
+  the inter-click period (`holdMs + delayAfter`) and the gap to the next module/group/pass.
+  One knob for the whole cadence. `delayAfter = 0` means "as soon as the release lands".
 - On any exit path, held buttons are released ([§6](#6-safety)).
 - **Pause gates at click boundaries** — an in-flight click (down → hold → up) always
   completes. While paused, *all* engine delays are frozen (click spacing, `delayAfter`,
@@ -307,8 +313,8 @@ window). `loopDelay` is **not** applied after the final pass of a `count` run.
   ([Appendix C](#appendix-c-stack-validation-results) measured p95 scheduling lateness ≈1 ms
   at 10–20 CPS, stop within ~9 ms at 50 CPS). `holdMs` is a real sleep between down and up,
   so the effective press ≈ `holdMs` + a fraction of a ms. **Presses below ~5 ms are ignored
-  by some targets**, which is why the default is 10 ms; `clickInterval` is now additive to
-  `holdMs` ([§3.2](#32-timing) above), so a small interval no longer collides with the hold.
+  by some targets**, which is why the default is 10 ms; `delayAfter` is additive to
+  `holdMs` ([§3.2](#32-timing) above), so the click period is `holdMs + delayAfter`.
 - **`Progress.ElapsedMs`** counts *active* run time (wall clock minus paused time) and
   resets to `0` on each Run; `maxRuntimeSec` is measured on the same active clock, so time
   spent paused never counts against the cap. `Clicks` likewise resets per run.
@@ -323,9 +329,9 @@ window). `loopDelay` is **not** applied after the final pass of a `count` run.
 | `target` | object | `{"kind":"cursor"}` | — | `absolute {x,y}` or `cursor` ([§3.4](#34-targets)) |
 | `button` | enum | `left` | `left`/`right`/`middle`/`none` | mouse button; `none` = **move only** (absolute target: moves without clicking; `holdMs` is ignored) |
 | `count` | int | `1` | 1–1000 | clicks per pass (burst size, *not* a rate) |
-| `clickInterval` | int (ms) | `0` | 0–60000 | extra pause after each click (period = `holdMs + clickInterval`) |
 | `holdMs` | int (ms) | `10` | 0–1000 | how long the button stays down per click |
-| `delayAfter` | int (ms) | `250` | 0–3600000 | pause inserted after this module's clicks |
+| `delayAfter` | int (ms) | `250` | 0–3600000 | pause after **every** click (period = `holdMs + delayAfter`; also the gap to the next module) |
+| `clickInterval` | int (ms) | `0` | 0–60000 | **deprecated**; folded into `delayAfter` on load, no longer edited or run |
 
 Design notes:
 - **Safe defaults.** A freshly added module is `cursor`-targeted with `delayAfter: 250`,
@@ -453,22 +459,22 @@ portal registration intentionally share the `auto-clicker` id.
   "loop": { "mode": "forever", "count": 10, "loopDelay": { "min": 500, "max": 1500 } },
   "failsafe": { "maxRuntimeSec": 3600, "mouseToCornerStops": false },
   "modules": [
-    { "kind": "click", "id": "m1", "enabled": true, "delayAfter": 250,
+    { "kind": "click", "id": "m1", "enabled": true, "delayAfter": 90,
       "target": { "kind": "absolute", "x": 940, "y": 520 },
-      "button": "left", "count": 3, "clickInterval": 90, "holdMs": 10 },
+      "button": "left", "count": 3, "holdMs": 10 },
     { "kind": "click", "id": "m2", "enabled": true, "delayAfter": 400,
       "target": { "kind": "cursor" },
-      "button": "left", "count": 1, "clickInterval": 0, "holdMs": 10 },
+      "button": "left", "count": 1, "holdMs": 10 },
     { "kind": "click", "id": "m3", "enabled": false, "delayAfter": 250,
       "target": { "kind": "absolute", "x": 100, "y": 100 },
-      "button": "right", "count": 1, "clickInterval": 0, "holdMs": 10 }
+      "button": "right", "count": 1, "holdMs": 10 }
   ]
 }
 ```
 
-Run of the above: click `(940,520)` ×3 spaced 90 ms → wait 250 ms → click at the cursor
-once → wait 400 ms → end of pass → wait a random 500–1500 ms → repeat forever. `m3` never
-fires.
+Run of the above: click `(940,520)` ×3, 90 ms after each (including the last) → click at
+the cursor once → 400 ms → end of pass → wait a random 500–1500 ms → repeat forever. `m3`
+never fires.
 
 ### 3.8 Where profiles are stored
 
@@ -540,7 +546,7 @@ always writes every key so the file is self-describing.
   "selectedProfile": "idle-tycoon",   // profile id (filename stem); "" = none
   "profilesDir": "",                  // "" = resolve the OS default; else absolute override
   "window": { "x": 120, "y": 80, "width": 1100, "height": 720, "maximized": false },
-  "hotkeys": { "run": "F8", "pause": "F9", "panic": "CTRL+SHIFT+F12" },
+  "hotkeys": { "run": "F8", "pause": "F9" },
   "defaultMaxRuntimeSec": 3600,       // seed for NEW profiles; 0 = unlimited
   "theme": "dark"                     // "dark" | "light" | "system" (light/system = Phase 2)
 }
@@ -588,8 +594,8 @@ Modules can be organised into **groups** — an ordered, toggleable container. T
 ```jsonc
 "modules": [ /* ungrouped clicks */ ],
 "groups": [
-  { "id": "g_ab12cd34", "name": "Adventure", "enabled": true,  "modules": [ /* … */ ] },
-  { "id": "g_99ff0011", "name": "City",      "enabled": false, "modules": [ /* … */ ] }
+  { "id": "g_ab12cd34", "name": "Adventure", "enabled": true,  "repeat": 3, "delayAfter": 500, "modules": [ /* … */ ] },
+  { "id": "g_99ff0011", "name": "City",      "enabled": false, "repeat": 1, "delayAfter": 0,   "modules": [ /* … */ ] }
 ]
 ```
 
@@ -599,12 +605,17 @@ Rules:
 - **Execution order is ungrouped first, then each group in list order.** Within a container,
   list order applies. This keeps the flat "top → bottom" model for profiles that use no
   groups.
+- **Each group is its own loop.** `repeat` (default `1`, range `1–1000`) runs the group's
+  block that many times before the next group, inside every pass of the profile loop.
+  `delayAfter` (ms, default `0`) waits after the group's repeats before the next group; it
+  is skipped for the last group, which the profile's `loopDelay` already covers.
 - **Effective enabled = `module.enabled && group.enabled`.** A disabled group skips all of
   its modules but keeps them, their order and their settings; the group can be re-enabled
   later. `EnabledCount`, validation and the execution-order badges all use the effective
   flag.
-- **Groups are gated, not flattened away.** The runner still takes a snapshot and flattens
-  the effective enabled modules into one queue ([§3.1](#31-execution-semantics)).
+- **Groups are gated, not flattened away.** The runner still takes a snapshot, but keeps
+  the ungrouped block and each enabled group as a distinct block so the group loop and
+  delay survive ([§3.1](#31-execution-semantics)).
 - **Deleting a group keeps its clicks**: they move to the ungrouped list (never silently
   deleted).
 - **Backward compatible.** `groups` is absent in older files and defaults to empty, so a
@@ -612,14 +623,14 @@ Rules:
   is structural (which array it lives in), which keeps the JSON unambiguous.
 - **DnD across containers**: a click can be dragged between groups (or into/out of the
   ungrouped list) and reordered within a container. The engine is unaffected because the
-  flattened order is what it consumes.
+  plan's order is what it consumes.
 
 ---
 
 ## 4. Runner State Machine
 
 ```
-        run                       stop / done / error / panic
+        run                       stop / done / error
  idle ────────► running ─────────────────────────────────────► idle
                   │  ▲
            pause  │  │ resume  (F9)
@@ -629,12 +640,12 @@ Rules:
 
 | Transition | Trigger | Effect |
 |---|---|---|
-| `idle → running` | Run button / F8 | validate (**≥ 1 enabled module**) → snapshot → flatten → start scheduler goroutine |
+| `idle → running` | Run button / F8 | validate (**≥ 1 enabled module**) → snapshot → build plan → start scheduler goroutine |
 | `running → paused` | Pause button / F9 | gate between clicks; in-flight click completes; all delays and the active-time clock frozen ([§3.2](#32-timing)) |
 | `paused → running` | Resume button / F9 | current delay restarts from zero |
-| `running → idle` | Stop button / F8 / done / max runtime | graceful; stop before the next click |
-| any → `idle` | Panic (`Ctrl+Shift+F12`) | cancel immediately, release all buttons, log the reason |
-| any → `idle` | window closed / app quit | same as panic (there is no tray in v1) |
+| `running → idle` | Stop button / F8 | cancel immediately, release all buttons, log the reason |
+| any → `idle` | done / max runtime | natural end of the plan, or the runtime cap reached |
+| any → `idle` | window closed / app quit | same as Stop (there is no tray in v1) |
 
 **Closing the window stops the run and releases inputs.** In v1 there is no tray icon,
 so the window is the app; minimizing keeps the run alive, closing does not.
@@ -643,9 +654,8 @@ so the window is the app; minimizing keeps the run alive, closing does not.
 
 | Key | Action |
 |---|---|
-| `F8` | Run / Stop toggle |
+| `F8` | Run / Stop toggle (Stop aborts immediately and releases all inputs) |
 | `F9` | Pause / Resume |
-| `Ctrl+Shift+F12` | Panic (abort + release all inputs) |
 
 Defaults are chosen to be unlikely to collide with games. Rebinding is a Phase 2
 setting; the hotkey source and whether registration succeeded are shown in the
@@ -665,14 +675,14 @@ type Progress struct {
     ProfileName   string   `json:"profileName"`
     ModuleID      string   `json:"moduleId"`
     ModuleLabel   string   `json:"moduleLabel"`   // generated summary for the card
-    ModuleIndex   int      `json:"moduleIndex"`   // 1-based, among ENABLED modules
-    ModuleTotal   int      `json:"moduleTotal"`
+    ModuleIndex   int      `json:"moduleIndex"`   // 1-based, among module executions this pass
+    ModuleTotal   int      `json:"moduleTotal"`   // executions per pass (group repeats included)
     ClickIndex    int      `json:"clickIndex"`    // 1-based, within the module
     ClickTotal    int      `json:"clickTotal"`
     LoopIteration int      `json:"loopIteration"` // 1-based pass counter
     Clicks        int64    `json:"clicks"`        // cumulative, monotonic within a run
     ElapsedMs     int64    `json:"elapsedMs"`     // active run time; paused time excluded
-    StopReason    string   `json:"stopReason,omitempty"` // "done"|"user"|"panic"|"maxRuntime"|"error"
+    StopReason    string   `json:"stopReason,omitempty"` // "done"|"user"|"maxRuntime"|"error"
     Error         string   `json:"error,omitempty"`
 }
 ```
@@ -689,8 +699,8 @@ are dropped.
 
 - One scheduler goroutine owns the run; input calls are serialized through it (no
   concurrent injection, ever).
-- Cancellation via `context.Context`. `Stop` cancels a "stop after current click" flag;
-  `Panic` cancels the context, which interrupts the interruptible sleeps immediately.
+- Cancellation via `context.Context`. `Stop` sets the stop flag *and* cancels the context,
+  which interrupts the interruptible sleeps immediately.
 - A separate 30 Hz goroutine polls `CursorPos()` **only** when the corner failsafe is
   enabled ([§6](#6-safety)); it is not started otherwise.
 - `ReleaseAll()` runs on every exit path via `defer`, so no code path can leave a button
@@ -740,7 +750,7 @@ fatal, so a failure only logs.
    [§4.1](#41-hotkeys-global--they-work-while-the-game-has-focus).
 
 **Shutdown** (window closed / app quit / OS logout), in this order:
-1. If a run is active, cancel it with **Panic** semantics and `ReleaseAll()` — inputs are
+1. If a run is active, cancel it with **Stop** semantics and `ReleaseAll()` — inputs are
    released *before* the driver is closed ([§6](#6-safety)).
 2. Flush any pending debounced autosave ([§5.3](#53-module-card)).
 3. Unregister hotkeys, close the driver, release the lock.
@@ -768,7 +778,7 @@ this is the "same visual" requirement, written down so the spec stands alone:
 | Mono | `ui-monospace` for coordinates, counts and shortcuts |
 | Accent — Run | `emerald-500` |
 | Accent — Pause/warning | `amber-400` |
-| Accent — Stop/Panic | `rose-600` |
+| Accent — Stop | `rose-600` |
 | Focus | `ring-2 ring-indigo-500 focus-visible` on every interactive element |
 | Type scale | 13 px base, 12 px secondary, 11 px badges |
 | Spacing | 8 px base; card gap `2`; section padding `3` |
@@ -789,9 +799,9 @@ Interaction rules:
 ┌────────────┬──────────────────────────────────────────────────────────┐
 │ PROFILES   │  ▸ Click pipeline  (enabled modules run top → bottom)    │
 │            │  ┌──────────────────────────────────────────────────────┐│
-│ ▸ Tycoon   │  │ ☑ 1  (940, 520) ×3 @90ms     delay after: 250ms  ≡🗑││
-│ ▸ Farm     │  │ ☑ 2  ⌖ at cursor ×1          delay after: 400ms  ≡🗑││
-│ + New      │  │ ☐ –  (100, 100) ×1 right     delay after: 250ms  ≡🗑││
+│ ▸ Tycoon   │  │ ☑ 1  (940, 520) left ×3 hold 10ms delay 90ms      ≡ ⋮ ││
+│ ▸ Farm     │  │ ☑ 2  ⌖ at cursor left ×1 hold 10ms delay 400ms     ≡ ⋮ ││
+│ + New      │  │ ☐ –  (100, 100) right ×1 hold 10ms delay 250ms     ≡ ⋮ ││
 │            │  └──────────────────────────────────────────────────────┘│
 │ ⚙ Settings │  [+ Add click]                                          │
 ├────────────┴──────────────────────────────────────────────────────────┤
@@ -803,7 +813,8 @@ Interaction rules:
 - **Left sidebar** — profiles: select, inline rename, duplicate, delete, plus Settings.
   Profile rows show module count and enabled count (`3 modules · 2 on`).
 - **Center** — the click pipeline: **ungrouped clicks**, then **groups** (each a titled,
-  collapsible-looking section with an enable switch and its own click list). Groups are one
+  collapsible-looking section with an enable switch, its own click list, a **repeat** input
+  (×N) and a **delay** input (ms) for the gap to the next group). Groups are one
   level deep — not nested action rows, which keeps the flat-list simplicity
   ([§3.12](#312-groups)). `+ Add group` creates one; `+ Add click` inside a group adds to
   that group. Drag a click between groups (or the ungrouped list) and reorder within a
@@ -826,7 +837,7 @@ prefer the mouse or cannot drag.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ ☑  1   (940, 520)  left ×3  @90ms  hold 10ms   delay 250ms   ≡   ⋮  │
+│ ☑  1   (940, 520)  left ×3  hold 10ms  delay 90ms             ≡   ⋮  │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -835,8 +846,7 @@ prefer the mouse or cannot drag.
 | Enable switch | toggles `enabled`; card dims when off |
 | Order badge | **execution order** (`1..n`) among enabled modules; `–` when disabled, so the real sequence is readable at a glance |
 | Target chip | `(940, 520)` mono, `⌖ at cursor`, or `⚠ off-screen` |
-| Summary | `left ×3 @90ms hold 10ms` — generated from fields, never stale |
-| `delayAfter` | compact number input, `ms` suffix |
+| Summary | `left ×3 hold 10ms delay 90ms` — generated from fields, never stale |
 | Drag handle `≡` | hidden while running |
 | Menu `⋮` | Duplicate · Move up · Move down · Enable/Disable · Delete |
 
@@ -846,8 +856,7 @@ Expanding a card (or its menu → Expand) reveals the edit row:
 label   [                              ]  (optional; empty → generated summary)
 target  ( ▪ absolute   ○ cursor )        pick position ⌖
         x [ 940 ]  y [ 520 ]
-button  [ left ▼ ]   count [ 3 ]   interval [ 90 ] ms   hold [ 10 ] ms
-delay after [ 250 ] ms
+button  [ left ▼ ]   count [ 3 ]   delay [ 90 ] ms   hold [ 10 ] ms
 ```
 
 - **Clicking a card expands it** for editing (click again to collapse); the card menu no
@@ -884,7 +893,7 @@ after the fact. That is why the hotkey can safely be a silent no-op.
 
 | Group | Contents |
 |---|---|
-| Hotkeys | F8 / F9 / Ctrl+Shift+F12 listed with the active source (`Portal (KDE)`, `X11 grab`, `Windows RegisterHotKey`, or ⚠ unavailable), plus the **"Enable native Wayland input"** action when the app is on the `x11` fallback and `libei` is available ([§2.2](#22-backend-selection)). Rebinding is Phase 2. |
+| Hotkeys | F8 / F9 listed with the active source (`Portal (KDE)`, `X11 grab`, `Windows RegisterHotKey`, or ⚠ unavailable), plus the **"Enable native Wayland input"** action when the app is on the `x11` fallback and `libei` is available ([§2.2](#22-backend-selection)). Rebinding is Phase 2. |
 | Safety (per profile) | Max runtime for the **open profile** (`failsafe.maxRuntimeSec`, minutes, `0` = unlimited; new profiles seeded from `defaultMaxRuntimeSec`, default 60). This edits the profile, not a global — the cap travels with the file ([§3.10](#310-app-settings-schema)). Corner failsafe toggle — **disabled with a tooltip when `CursorPos()` is unavailable**. The whole group is disabled when no profile is open. |
 | Profiles | Resolved folder path, `Open folder`, `Change…` |
 | Advanced | `defaultMaxRuntimeSec` (seed for new profiles); resolved log folder + `Open log folder` |
@@ -917,7 +926,8 @@ Run is blocked, with the reason shown inline next to the offending control:
 | Move-only (`button: none`) with a `cursor` target | warning |
 | Group ids are unique; each group has an id | blocking |
 | A group has a non-empty name | warning |
-| `count` ∈ 1–1000, `clickInterval` ∈ 0–60000, `holdMs` ∈ 0–1000, `delayAfter` ∈ 0–3600000 | blocking |
+| Group `repeat` ∈ 1–1000, group `delayAfter` ∈ 0–3600000 | blocking |
+| `count` ∈ 1–1000, `holdMs` ∈ 0–1000, `delayAfter` ∈ 0–3600000 | blocking |
 | `loop.mode = count` ⇒ `count ≥ 1` | blocking |
 | `loopDelay.min ≤ loopDelay.max`, both ≥ 0 | blocking |
 | Coordinates inside the canonical desktop bounds ([§3.5](#35-coordinate-space-and-display-changes)) | **warning only** |
@@ -968,19 +978,18 @@ Also in v1:
 |---|---|
 | `F8` | Run / Stop (also global) |
 | `F9` | Pause / Resume (also global) |
-| `Ctrl+Shift+F12` | Panic (global only) |
 | `Esc` | close the picker, popovers, dialogs |
 | `Space` | toggle the focused module's enable switch; lift/drop during DnD |
 | `Delete` | delete the focused module (with undo toast) |
 | `↑` / `↓` with `Alt` | move the focused module up/down |
 
-**Shortcut scoping.** F8/F9 and the global panic always act, from anywhere. The *editing*
+**Shortcut scoping.** F8/F9 always act, from anywhere. The *editing*
 shortcuts — `Space`, `Delete`, and `Alt+↑/↓` — are **suppressed while focus is in a text
 field, number input, textarea, select or `contenteditable`**, and while a dialog, popover
 or the picker overlay owns focus. Without this, typing a label or a coordinate would
 toggle or delete modules. `Esc` closes the topmost overlay/dialog and does nothing when
 none is open. During a run the UI is locked ([§3.1](#31-execution-semantics)), so only
-F8/F9/panic are live.
+F8/F9 are live.
 
 ---
 
@@ -988,8 +997,7 @@ F8/F9/panic are live.
 
 | Mechanism | Behavior | Phase |
 |---|---|---|
-| Panic hotkey (`Ctrl+Shift+F12`) | abort immediately (even mid-click), release all buttons | v1 |
-| Stop (`F8`) | graceful: finish the current click, stop before the next | v1 |
+| Stop (`F8`) | abort immediately (even mid-click), release all buttons | v1 |
 | Max runtime | profile-level `maxRuntimeSec` (default 3600, `0` = unlimited), measured on **active** run time so pausing never counts against it ([§3.2](#32-timing)); auto-stops with a notice | v1 |
 | **Single-instance lock** | a second launch refuses to run and shows "Auto Clicker is already running" | v1 |
 | **UI locked while running** | destructive controls are inert, so even a `cursor` module clicking over our own window cannot delete or retarget anything | v1 |
@@ -1042,8 +1050,8 @@ Taskfile.yml                 Wails task runner (build/dev/package) [scaffold]
 build/                       Wails build config: config.yml, appicon, per-OS Taskfiles
 internal/model/              Profile, Module, Target, Loop, Failsafe; validation;
                              JSON with unknown-field preservation; schema migrations
-internal/engine/             Runner: snapshot → flatten → schedule → execute;
-                             state machine, pause/stop/panic, progress events
+internal/engine/             Runner: snapshot → plan (group blocks) → schedule →
+                             execute; state machine, pause/stop, progress events
 internal/input/              Driver interface; backend_linux.go / backend_windows.go;
                              fake.go for tests
 internal/cursor/             CursorPos query path per platform + capability probe
@@ -1186,7 +1194,6 @@ func (s *Service) Run(profileID string) error
 func (s *Service) Stop() error
 func (s *Service) Pause() error
 func (s *Service) Resume() error
-func (s *Service) Panic() error
 func (s *Service) Status() Progress
 
 // Picking
@@ -1270,8 +1277,8 @@ human at the consent dialog are marked **pending**. Results are recorded in
 ### Phase 1 — MVP
 Profiles CRUD (create/rename/duplicate/delete, autosave, atomic writes); flat module list
 with toggle, drag-reorder (+ keyboard/ Move up/down), add, duplicate, delete with undo;
-inline editing; coordinate picker; flatten runner; three loop
-modes; Run/Pause/Stop/Panic; validation with the three empty/blocked states; locked UI;
+inline editing; coordinate picker; plan runner; three loop
+modes; Run/Pause/Stop; validation with the three empty/blocked states; locked UI;
 telemetry bar; settings + diagnostics; single-instance lock; global hotkeys.
 
 **Status (in progress).** The Go core is implemented and tested (`go test ./internal/...`):
@@ -1280,7 +1287,7 @@ telemetry bar; settings + diagnostics; single-instance lock; global hotkeys.
 |---|---|
 | `internal/model` — types, JSON + unknown-field preservation, defaults, validation, slug | ✅ done, tested |
 | `internal/store` — paths, atomic writes, CRUD, settings, single-instance lock | ✅ done, tested (Linux + Windows build) |
-| `internal/engine` — flatten, deadline accumulation, loop modes, pause/stop/panic, progress | ✅ done, tested (fake clock + fake driver) |
+| `internal/engine` — plan (group repeats + delays), deadline accumulation, loop modes, pause/stop, progress | ✅ done, tested (fake clock + fake driver) |
 | `internal/input` — `Driver`, `FakeDriver`, x11/libei and win backends | ✅ done; Linux + Windows cross-build |
 | `internal/cursor` — capability probe | ✅ done, tested |
 | `internal/hotkey` — trigger normalization | ✅ done, tested |
@@ -1314,7 +1321,7 @@ see [§3.9](#39-schema-evolution).
 | Layer | Approach |
 |---|---|
 | `internal/model` | table-driven validation tests (every blocking and warning rule), JSON round-trip for **profiles and settings**, **unknown-field preservation** (encode → decode → encode is byte-stable), schema-version refusal, slug edge cases (blank, all-non-ASCII → `profile`, truncation) and collision/duplicate naming, first-run template contents, **group gating** (effective enabled, `EnabledCount`) and group round-trip/unknown-field preservation |
-| `internal/engine` | `FakeDriver` + a **fake clock** + a **seeded `Rng`**: flatten order (disabled skipped, order preserved; ungrouped then groups; a disabled group skips its modules), click spacing math (`count`/`clickInterval`/`holdMs`/`delayAfter`), loop modes incl. `loopDelay` not applied after the last pass, uniform inclusive `loopDelay` draws, **resume does not re-roll** a drawn delay, `ElapsedMs`/`maxRuntime` exclude paused time, cancel-before-next-click, pause gating and resume-from-zero, panic releases without a trailing click, `ReleaseAll` on every exit path |
+| `internal/engine` | `FakeDriver` + a **fake clock** + a **seeded `Rng`**: plan order (disabled skipped, order preserved; ungrouped then groups; a disabled group skips its modules), group `repeat` and `delayAfter` (last group skipped), per-click `delayAfter` spacing (`holdMs + delayAfter`), loop modes incl. `loopDelay` not applied after the last pass, uniform inclusive `loopDelay` draws, **resume does not re-roll** a drawn delay, `ElapsedMs`/`maxRuntime` exclude paused time, cancel-before-next-click, pause gating and resume-from-zero, stop releases without a trailing click, `ReleaseAll` on every exit path |
 | `internal/input` | `FakeDriver` asserts no `Move` before `ClickHere`; capability degradation when `CursorPos` is unavailable; `Displays()` bounding box matches `ScreenSize()`; single-synthetic-display fallback |
 | `internal/store` | atomic write (temp+rename), path resolution via mocks/injection, `profilesDir` override validation and fallback, unreadable file listing without overwrite, single-instance lock acquire/release |
 | `internal/hotkey` | trigger-string parsing (the uppercase-modifier trap, [Appendix B](#appendix-b-global-shortcuts-portal-gotchas)) unit-testable in isolation; real grab is a manual check |
@@ -1329,7 +1336,7 @@ click of the signal" is a completely deterministic assertion.
 1. **Linux/Wayland**: extract, run → verify `~/Documents/auto-clicker/` is created; add a
    module, pick coordinates, run once (`count: 3`) and confirm 3 clicks; toggle all
    modules off → Run blocked with the inline reason; enable, run `forever`, then press
-   `Ctrl+Shift+F12` → instant stop; quit while running → no button held; launch a second
+   `F8` → instant stop; quit while running → no button held; launch a second
    instance → refused with a message.
 2. **Linux/X11 session**: same, confirming the `x11` backend is selected and hotkeys work
    through `XGrabKey`.
@@ -1467,13 +1474,20 @@ Design choices:
       "target": { "kind": "absolute", "x": 940, "y": 520 },   // or { "kind": "cursor" }
       "button": "left",            // "left" | "right" | "middle" | "none" (none = move only)
       "count": 3,                  // 1..1000
-      "clickInterval": 90,         // ms, 0..60000, pause AFTER this click (adds to holdMs)
       "holdMs": 10,                // ms, 0..1000, button-down duration
-      "delayAfter": 250            // ms, 0..3600000, after the module's last click
+      "delayAfter": 250,           // ms, 0..3600000, after EVERY click (period = holdMs + delayAfter)
+      "clickInterval": 0           // deprecated; folded into delayAfter on load
     }
   ],
   "groups": [                      // optional; absent == [] (§3.12)
-    { "id": "g_ab12cd34", "name": "Adventure", "enabled": true, "modules": [ /* … */ ] }
+    {
+      "id": "g_ab12cd34",
+      "name": "Adventure",
+      "enabled": true,
+      "repeat": 3,                 // 1..1000; times this group runs before the next
+      "delayAfter": 500,           // ms, 0..3600000, after the group's repeats (skipped for the last group)
+      "modules": [ /* … */ ]
+    }
   ]
 }
 ```
@@ -1485,7 +1499,8 @@ Notes:
   from before the discriminator was introduced remain valid, see
   [§3.9](#39-schema-evolution).
 - **Groups** ([§3.12](#312-groups)): ungrouped `modules` run first, then each enabled
-  `groups[]` entry in order; a module runs only if both it and its group are enabled. Group
+  `groups[]` entry in order; a module runs only if both it and its group are enabled. Each
+  group repeats `repeat` times per pass, with `delayAfter` before the next group. Group
   ids are unique within the profile; deleting a group moves its modules to `modules`.
 - Unknown keys at any level are preserved on round-trip.
 - `settings.json` is a separate, machine-specific file, specified in

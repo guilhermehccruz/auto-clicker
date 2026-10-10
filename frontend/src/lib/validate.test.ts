@@ -15,7 +15,7 @@ function profile(modules: Profile["modules"]): Profile {
 const base = {
   kind: "click" as const, id: "m1", name: "", enabled: true,
   target: { kind: "cursor" as const }, button: "left" as const,
-  count: 1, clickInterval: 0, holdMs: 10, delayAfter: 250,
+  count: 1, holdMs: 10, delayAfter: 250,
 };
 
 describe("validateProfile", () => {

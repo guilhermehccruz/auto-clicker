@@ -17,7 +17,6 @@ export function BottomBar({
   onStop,
   onPause,
   onResume,
-  onPanic,
 }: {
   loop: Loop;
   onLoopChange: (l: Loop) => void;
@@ -29,7 +28,6 @@ export function BottomBar({
   onStop: () => void;
   onPause: () => void;
   onResume: () => void;
-  onPanic: () => void;
 }) {
   return (
     <footer className="flex items-center justify-between gap-3 border-t border-neutral-800 bg-neutral-900 px-3 py-2">
@@ -69,7 +67,7 @@ export function BottomBar({
               onChange={(e) =>
                 onLoopChange({ ...loop, loopDelay: { ...loop.loopDelay, min: Number(e.target.value) } })
               }
-              className="mono w-16 rounded border border-neutral-700 bg-neutral-800 px-1.5 py-1 text-neutral-100 disabled:opacity-50"
+              className="mono w-20 rounded border border-neutral-700 bg-neutral-800 px-1.5 py-1 text-neutral-100 disabled:opacity-50"
             />
             –
             <input
@@ -80,7 +78,7 @@ export function BottomBar({
               onChange={(e) =>
                 onLoopChange({ ...loop, loopDelay: { ...loop.loopDelay, max: Number(e.target.value) } })
               }
-              className="mono w-16 rounded border border-neutral-700 bg-neutral-800 px-1.5 py-1 text-neutral-100 disabled:opacity-50"
+              className="mono w-20 rounded border border-neutral-700 bg-neutral-800 px-1.5 py-1 text-neutral-100 disabled:opacity-50"
             />
             ms
           </label>
@@ -97,7 +95,6 @@ export function BottomBar({
         onStop={onStop}
         onPause={onPause}
         onResume={onResume}
-        onPanic={onPanic}
       />
     </footer>
   );

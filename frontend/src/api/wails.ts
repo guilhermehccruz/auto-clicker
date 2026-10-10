@@ -106,10 +106,6 @@ export class WailsApi implements Api {
     await Svc.Service.Resume();
   }
 
-  async panic(): Promise<void> {
-    await Svc.Service.Panic();
-  }
-
   async status(): Promise<Progress> {
     return (await Svc.Service.Status()) as unknown as Progress;
   }

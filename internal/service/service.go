@@ -367,7 +367,7 @@ func (s *Service) Run(profileID string) error {
 	return s.engine.Run(p)
 }
 
-// Stop requests a graceful stop.
+// Stop cancels the run immediately, releasing all inputs.
 func (s *Service) Stop() error { return s.engine.Stop() }
 
 // Pause pauses the run.
@@ -375,9 +375,6 @@ func (s *Service) Pause() error { return s.engine.Pause() }
 
 // Resume resumes the run.
 func (s *Service) Resume() error { return s.engine.Resume() }
-
-// Panic aborts immediately and releases inputs.
-func (s *Service) Panic() error { return s.engine.Panic() }
 
 // Status returns the latest progress.
 func (s *Service) Status() engine.Progress { return s.engine.Status() }
@@ -391,7 +388,6 @@ func (s *Service) RegisterHotkeys() (map[string]string, error) {
 	return s.hotkeys.Register([]hotkey.Binding{
 		{ID: "run", Label: "Run / Stop", Trigger: hk.Run},
 		{ID: "pause", Label: "Pause / Resume", Trigger: hk.Pause},
-		{ID: "panic", Label: "Panic", Trigger: hk.Panic},
 	})
 }
 
@@ -423,8 +419,6 @@ func (s *Service) onHotkey(id string) {
 		case engine.StatePaused:
 			_ = s.engine.Resume()
 		}
-	case "panic":
-		_ = s.engine.Panic()
 	}
 }
 

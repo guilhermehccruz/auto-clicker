@@ -23,7 +23,6 @@ type Window struct {
 type Hotkeys struct {
 	Run   string `json:"run"`
 	Pause string `json:"pause"`
-	Panic string `json:"panic"`
 }
 
 // Settings is the machine-specific app configuration (DESIGN §3.10).
@@ -44,7 +43,7 @@ func DefaultSettings() Settings {
 	return Settings{
 		SchemaVersion:        model.SchemaVersion,
 		Window:               Window{W: 1100, H: 720},
-		Hotkeys:              Hotkeys{Run: "F8", Pause: "F9", Panic: "CTRL+SHIFT+F12"},
+		Hotkeys:              Hotkeys{Run: "F8", Pause: "F9"},
 		DefaultMaxRuntimeSec: model.DefaultMaxRuntimeSec,
 		Theme:                "dark",
 	}

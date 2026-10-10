@@ -89,8 +89,9 @@ func main() {
 			Handler: application.BundledAssetFileServer(assets),
 		},
 		OnShutdown: func() {
-			// Release inputs, flush autosave, unregister hotkeys, drop lock.
-			_ = svc.Panic()
+			// Stop the run (releases inputs), flush autosave, unregister
+			// hotkeys, drop lock.
+			_ = svc.Stop()
 			_ = svc.CloseHotkeys()
 			if lock != nil {
 				_ = lock.Release()

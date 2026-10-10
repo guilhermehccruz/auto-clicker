@@ -75,9 +75,6 @@ func Validate(p *Profile, current Desktop) []Issue {
 		if m.Count < MinCount || m.Count > MaxCount {
 			add(Blocking, m.ID, "count", "%s: count must be %d–%d", label, MinCount, MaxCount)
 		}
-		if m.ClickInterval < MinClickInterval || m.ClickInterval > MaxClickInterval {
-			add(Blocking, m.ID, "clickInterval", "%s: interval must be %d–%d ms", label, MinClickInterval, MaxClickInterval)
-		}
 		if m.HoldMs < MinHoldMs || m.HoldMs > MaxHoldMs {
 			add(Blocking, m.ID, "holdMs", "%s: hold must be %d–%d ms", label, MinHoldMs, MaxHoldMs)
 		}
@@ -128,6 +125,16 @@ func Validate(p *Profile, current Desktop) []Issue {
 		if strings.TrimSpace(g.Name) == "" {
 			add(Warning, "", "groups", "A group has no name")
 		}
+		label := strings.TrimSpace(g.Name)
+		if label == "" {
+			label = "unnamed group"
+		}
+		if g.Repeat < MinGroupRepeat || g.Repeat > MaxGroupRepeat {
+			add(Blocking, "", "groups.repeat", "%s: repeat must be %d–%d", label, MinGroupRepeat, MaxGroupRepeat)
+		}
+		if g.DelayAfter < MinDelayAfter || g.DelayAfter > MaxDelayAfter {
+			add(Blocking, "", "groups.delayAfter", "%s: delay after must be %d–%d ms", label, MinDelayAfter, MaxDelayAfter)
+		}
 		for _, m := range g.Modules {
 			checkModule(m, g.Enabled && m.Enabled)
 		}
@@ -175,12 +182,12 @@ func (m Module) Summary() string {
 		} else {
 			b.WriteString(" move only")
 		}
-		return b.String()
+	} else {
+		fmt.Fprintf(&b, " %s ×%d", m.Button, m.Count)
+		fmt.Fprintf(&b, " hold %dms", m.HoldMs)
 	}
-	fmt.Fprintf(&b, " %s ×%d", m.Button, m.Count)
-	if m.ClickInterval > 0 {
-		fmt.Fprintf(&b, " @%dms", m.ClickInterval)
+	if m.DelayAfter > 0 {
+		fmt.Fprintf(&b, " delay %dms", m.DelayAfter)
 	}
-	fmt.Fprintf(&b, " hold %dms", m.HoldMs)
 	return b.String()
 }

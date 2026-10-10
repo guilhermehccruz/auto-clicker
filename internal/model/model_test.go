@@ -231,18 +231,60 @@ func TestGroupRoundTrip(t *testing.T) {
 	if !p2.Groups[0].Enabled {
 		t.Error("group enabled should default true")
 	}
+	if p2.Groups[0].Repeat != DefaultGroupRepeat {
+		t.Errorf("group repeat should default %d, got %d", DefaultGroupRepeat, p2.Groups[0].Repeat)
+	}
+}
+
+func TestGroupRepeatAndDelayValidation(t *testing.T) {
+	p := NewProfile("t", Display{}, DefaultMaxRuntimeSec)
+	g := NewGroup("A")
+	g.Repeat = 0
+	g.DelayAfter = -1
+	g.Modules = []Module{NewModule()}
+	p.Groups = []Group{g}
+
+	issues := Validate(p, Desktop{})
+	if !HasBlocking(issues) {
+		t.Fatal("repeat=0 and negative delay must block")
+	}
+	g.Repeat = DefaultGroupRepeat
+	g.DelayAfter = 0
+	p.Groups = []Group{g}
+	if HasBlocking(Validate(p, Desktop{})) {
+		t.Errorf("valid group must not block: %v", Validate(p, Desktop{}))
+	}
 }
 
 func TestSummaryAndLabel(t *testing.T) {
 	m := NewModule()
 	m.Target = NewAbsoluteTarget(940, 520)
 	m.Count = 3
-	m.ClickInterval = 90
-	if got := m.Summary(); got != "(940, 520) left ×3 @90ms hold 10ms" {
+	m.DelayAfter = 90
+	if got := m.Summary(); got != "(940, 520) left ×3 hold 10ms delay 90ms" {
 		t.Errorf("Summary = %q", got)
 	}
 	m.Name = "Buy"
 	if m.Label() != "Buy" {
 		t.Errorf("Label should prefer name")
+	}
+}
+
+func TestClickIntervalFoldsIntoDelayAfter(t *testing.T) {
+	var m Module
+	if err := json.Unmarshal([]byte(`{"id":"m1","count":3,"clickInterval":90,"delayAfter":250}`), &m); err != nil {
+		t.Fatal(err)
+	}
+	if m.DelayAfter != 90 || m.ClickInterval != 0 {
+		t.Errorf("migration: delayAfter=%d clickInterval=%d, want 90/0", m.DelayAfter, m.ClickInterval)
+	}
+
+	// A profile without the deprecated field keeps its delayAfter.
+	var m2 Module
+	if err := json.Unmarshal([]byte(`{"id":"m2","count":1,"delayAfter":400}`), &m2); err != nil {
+		t.Fatal(err)
+	}
+	if m2.DelayAfter != 400 {
+		t.Errorf("delayAfter = %d, want 400", m2.DelayAfter)
 	}
 }

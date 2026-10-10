@@ -26,6 +26,18 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* Number inputs: drop the native up/down spinners; the app edits values inline. */
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* Respect reduced motion for drag animations. */
 @media (prefers-reduced-motion: reduce) {
   * {

@@ -71,7 +71,7 @@ export function ModuleCard({
         m.enabled ? "" : "opacity-60 grayscale"
       }`}
     >
-      <div className="flex cursor-pointer items-center gap-3" onClick={onRowClick}>
+      <div className="flex cursor-pointer items-center gap-2" onClick={onRowClick}>
         <button
           type="button"
           role="switch"
@@ -86,7 +86,9 @@ export function ModuleCard({
         <span className="mono w-5 shrink-0 text-center text-[11px] text-neutral-500">
           {m.enabled ? order : "–"}
         </span>
-        <span className="mono shrink-0 text-neutral-200">{targetChip(m, desktop.width, desktop.height)}</span>
+        <span className="mono w-28 shrink-0 text-left text-neutral-200">
+          {targetChip(m, desktop.width, desktop.height)}
+        </span>
         {editingLabel ? (
           <input
             autoFocus
@@ -117,17 +119,6 @@ export function ModuleCard({
         {/* Free space belongs to the card (click to expand), not the rename-only
             title text. */}
         <div className="min-w-0 flex-1" />
-        <label className="flex items-center gap-1 text-[11px] text-neutral-500">
-          delay
-          <input
-            type="number"
-            value={m.delayAfter}
-            disabled={locked}
-            onChange={(e) => onUpdate({ delayAfter: Number(e.target.value) })}
-            className="mono w-16 rounded border border-neutral-700 bg-neutral-900 px-1 py-0.5 text-neutral-200 disabled:opacity-50"
-          />
-          ms
-        </label>
 
         <button
           type="button"
@@ -172,14 +163,14 @@ export function ModuleCard({
               />
             </div>
             <NumberField label="count" value={m.count} min={1} max={1000} disabled={locked} onChange={(v) => onUpdate({ count: v })} />
-            <NumberField label="interval" value={m.clickInterval} min={0} max={60000} unit="ms" disabled={locked} onChange={(v) => onUpdate({ clickInterval: v })} />
+            <NumberField label="delay" value={m.delayAfter} min={0} max={3600000} unit="ms" disabled={locked} onChange={(v) => onUpdate({ delayAfter: v })} />
             {m.button !== "none" && (
               <NumberField label="hold" value={m.holdMs} min={0} max={1000} unit="ms" disabled={locked} onChange={(v) => onUpdate({ holdMs: v })} />
             )}
           </div>
           {m.button !== "none" && m.holdMs < 5 && (
             <p className="text-[11px] text-amber-400">
-              Hold under 5 ms may be ignored by some targets; the period is hold + interval.
+              Hold under 5 ms may be ignored by some targets; the period is hold + delay.
             </p>
           )}
         </div>

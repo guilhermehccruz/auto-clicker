@@ -21,7 +21,7 @@ export class MockApi implements Api {
     selectedProfile: "idle-tycoon",
     profilesDir: "~/Documents/auto-clicker",
     window: { x: 120, y: 80, width: 1100, height: 720, maximized: false },
-    hotkeys: { run: "F8", pause: "F9", panic: "CTRL+SHIFT+F12" },
+    hotkeys: { run: "F8", pause: "F9" },
     defaultMaxRuntimeSec: 3600,
     theme: "dark",
   };
@@ -39,9 +39,9 @@ export class MockApi implements Api {
       failsafe: { maxRuntimeSec: 3600, mouseToCornerStops: false },
       groups: [],
       modules: [
-        { kind: "click", id: "m1", name: "", enabled: true, target: { kind: "absolute", x: 940, y: 520 }, button: "left", count: 3, clickInterval: 90, holdMs: 10, delayAfter: 250 },
-        { kind: "click", id: "m2", name: "", enabled: true, target: { kind: "cursor" }, button: "left", count: 1, clickInterval: 0, holdMs: 10, delayAfter: 400 },
-        { kind: "click", id: "m3", name: "", enabled: false, target: { kind: "absolute", x: 100, y: 100 }, button: "right", count: 1, clickInterval: 0, holdMs: 10, delayAfter: 250 },
+        { kind: "click", id: "m1", name: "", enabled: true, target: { kind: "absolute", x: 940, y: 520 }, button: "left", count: 3, holdMs: 10, delayAfter: 90 },
+        { kind: "click", id: "m2", name: "", enabled: true, target: { kind: "cursor" }, button: "left", count: 1, holdMs: 10, delayAfter: 400 },
+        { kind: "click", id: "m3", name: "", enabled: false, target: { kind: "absolute", x: 100, y: 100 }, button: "right", count: 1, holdMs: 10, delayAfter: 250 },
       ],
     });
   }
@@ -210,7 +210,7 @@ export class MockApi implements Api {
         clicks,
         elapsedMs: Date.now() - start,
       });
-      this.timer = setTimeout(step, Math.max(30, m.clickInterval || m.delayAfter || 120));
+      this.timer = setTimeout(step, Math.max(30, m.delayAfter || 120));
     };
     this.emit({ ...emptyProgress(), state: "running", profileName: p.name });
     this.timer = setTimeout(step, 150);
@@ -230,13 +230,6 @@ export class MockApi implements Api {
   async resume(): Promise<void> {
     this.paused = false;
     this.emit({ ...this.progress, state: "running" });
-  }
-
-  async panic(): Promise<void> {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
-    this.paused = false;
-    this.emit({ ...this.progress, state: "idle", stopReason: "panic" });
   }
 
   async status(): Promise<Progress> {

@@ -35,7 +35,6 @@ export function validateProfile(p: Profile, current: Display): Issue[] {
       }
     };
     range("count", m.count);
-    range("clickInterval", m.clickInterval, " ms");
     range("holdMs", m.holdMs, " ms");
     range("delayAfter", m.delayAfter, " ms");
 
@@ -51,6 +50,13 @@ export function validateProfile(p: Profile, current: Display): Issue[] {
 
   for (const m of modules) checkModule(m, m.enabled);
   for (const g of groups) {
+    const name = g.name.trim() || "unnamed group";
+    if (g.repeat < 1 || g.repeat > 1000) {
+      issues.push({ level: "blocking", field: "groups.repeat", message: `${name}: repeat must be 1–1000` });
+    }
+    if (g.delayAfter < 0 || g.delayAfter > 3600000) {
+      issues.push({ level: "blocking", field: "groups.delayAfter", message: `${name}: delay after must be 0–3600000 ms` });
+    }
     for (const m of g.modules) checkModule(m, g.enabled && m.enabled);
   }
 

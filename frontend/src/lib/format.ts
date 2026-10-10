@@ -7,8 +7,8 @@ export function summary(m: Module): string {
     return m.count > 1 ? `${target} move ×${m.count}` : `${target} move only`;
   }
   let out = `${target} ${m.button} ×${m.count}`;
-  if (m.clickInterval > 0) out += ` @${m.clickInterval}ms`;
   out += ` hold ${m.holdMs}ms`;
+  if (m.delayAfter > 0) out += ` delay ${m.delayAfter}ms`;
   return out;
 }
 

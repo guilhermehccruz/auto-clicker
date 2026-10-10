@@ -41,6 +41,7 @@ export function ModuleList({
   onPick,
   onAddGroup,
   onRenameGroup,
+  onUpdateGroup,
   onSetGroupEnabled,
   onRemoveGroup,
   onMoveGroup,
@@ -60,6 +61,7 @@ export function ModuleList({
   onPick: (id: string) => void;
   onAddGroup: () => void;
   onRenameGroup: (id: string, name: string) => void;
+  onUpdateGroup: (id: string, patch: Partial<Group>) => void;
   onSetGroupEnabled: (id: string, enabled: boolean) => void;
   onRemoveGroup: (id: string) => void;
   onMoveGroup: (from: number, to: number) => void;
@@ -179,6 +181,7 @@ export function ModuleList({
             onPick={onPick}
             onMove={onMove}
             onRenameGroup={onRenameGroup}
+            onUpdateGroup={onUpdateGroup}
             onSetGroupEnabled={onSetGroupEnabled}
             onRemoveGroup={onRemoveGroup}
             onMoveGroup={onMoveGroup}
@@ -216,6 +219,7 @@ function Section({
   onPick,
   onMove,
   onRenameGroup,
+  onUpdateGroup,
   onSetGroupEnabled,
   onRemoveGroup,
   onMoveGroup,
@@ -238,6 +242,7 @@ function Section({
   onPick: (id: string) => void;
   onMove: (id: string, toContainer: string, toIndex: number) => void;
   onRenameGroup: (id: string, name: string) => void;
+  onUpdateGroup: (id: string, patch: Partial<Group>) => void;
   onSetGroupEnabled: (id: string, enabled: boolean) => void;
   onRemoveGroup: (id: string) => void;
   onMoveGroup: (from: number, to: number) => void;
@@ -340,7 +345,38 @@ function Section({
               {/* Free space belongs to the header (click to collapse), not the
                   rename-only name text. */}
               <div className="min-w-0 flex-1" />
-              <span className="text-[11px] text-neutral-500">
+              <label
+                className="flex shrink-0 items-center gap-1 text-[11px] text-neutral-400"
+                title="Times this group runs before the next group"
+              >
+                ×
+                <input
+                  type="number"
+                  min={1}
+                  value={g.repeat}
+                  disabled={locked}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => onUpdateGroup(g.id, { repeat: Number(e.target.value) })}
+                  className="mono w-12 rounded border border-neutral-700 bg-neutral-800 px-1 py-0.5 text-center text-neutral-100 disabled:opacity-50"
+                />
+              </label>
+              <label
+                className="flex shrink-0 items-center gap-1 text-[11px] text-neutral-400"
+                title="Delay after this group, before the next (ms)"
+              >
+                delay
+                <input
+                  type="number"
+                  min={0}
+                  value={g.delayAfter}
+                  disabled={locked}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => onUpdateGroup(g.id, { delayAfter: Number(e.target.value) })}
+                  className="mono w-20 rounded border border-neutral-700 bg-neutral-800 px-1.5 py-0.5 text-neutral-100 disabled:opacity-50"
+                />
+                ms
+              </label>
+              <span className="mono w-16 shrink-0 whitespace-nowrap text-right text-[11px] text-neutral-500">
                 {g.modules.filter((m) => m.enabled).length}/{g.modules.length} on
               </span>
               <span

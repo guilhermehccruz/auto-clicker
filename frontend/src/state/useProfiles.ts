@@ -20,6 +20,7 @@ export interface ProfilesState {
   duplicate: (id: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
   update: (mutate: (p: Profile) => Profile) => void;
+  flush: () => Promise<void>;
 
   addModule: (containerId?: string) => string;
   removeModule: (id: string) => void;
@@ -30,6 +31,7 @@ export interface ProfilesState {
 
   addGroup: (name: string) => void;
   renameGroup: (id: string, name: string) => void;
+  updateGroup: (id: string, patch: Partial<Group>) => void;
   setGroupEnabled: (id: string, enabled: boolean) => void;
   removeGroup: (id: string) => void;
   moveGroup: (from: number, to: number) => void;
@@ -148,12 +150,12 @@ export function useProfiles(api: Api): ProfilesState {
     [api, persist],
   );
 
-  const flush = useCallback(() => {
+  const flush = useCallback(async () => {
     if (saveTimer.current) {
       clearTimeout(saveTimer.current);
       saveTimer.current = null;
     }
-    if (profileRef.current && dirty) void persist(profileRef.current);
+    if (profileRef.current && dirty) await persist(profileRef.current);
   }, [dirty, persist]);
 
   useEffect(() => {
@@ -286,6 +288,16 @@ export function useProfiles(api: Api): ProfilesState {
     [update],
   );
 
+  const updateGroup = useCallback(
+    (id: string, patch: Partial<Group>) =>
+      update((p) => {
+        const g = p.groups.find((x) => x.id === id);
+        if (g) Object.assign(g, patch);
+        return p;
+      }),
+    [update],
+  );
+
   const setGroupEnabled = useCallback(
     (id: string, enabled: boolean) =>
       update((p) => {
@@ -322,9 +334,9 @@ export function useProfiles(api: Api): ProfilesState {
 
   return {
     profiles, problems, selectedId, profile, issues, dirty, saved, error,
-    select, create, rename, duplicate, remove, update,
+    select, create, rename, duplicate, remove, update, flush,
     addModule, removeModule, restoreModule, moveModule, duplicateModule, updateModule,
-    addGroup, renameGroup, setGroupEnabled, removeGroup, moveGroup,
+    addGroup, renameGroup, updateGroup, setGroupEnabled, removeGroup, moveGroup,
   };
 }
 
@@ -344,12 +356,11 @@ export function newModule(): Module {
     target: { kind: "cursor" },
     button: "left",
     count: 1,
-    clickInterval: 0,
     holdMs: 10,
     delayAfter: 250,
   };
 }
 
 export function newGroup(name: string): Group {
-  return { id: `g_${rand()}`, name: name || "New group", enabled: true, modules: [] };
+  return { id: `g_${rand()}`, name: name || "New group", enabled: true, repeat: 1, delayAfter: 0, modules: [] };
 }

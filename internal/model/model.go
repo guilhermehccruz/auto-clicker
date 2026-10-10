@@ -43,6 +43,8 @@ const (
 	MaxHoldMs        = 1000
 	MinDelayAfter    = 0
 	MaxDelayAfter    = 3600000
+	MinGroupRepeat   = 1
+	MaxGroupRepeat   = 1000
 	MaxNameLen       = 80
 )
 
@@ -96,28 +98,34 @@ type Failsafe struct {
 
 // Group is an ordered, toggleable container of modules. Ungrouped modules live
 // in Profile.Modules; group modules live in Group.Modules. Execution runs the
-// ungrouped modules first, then each enabled group in order.
+// ungrouped modules first, then each enabled group in order. Each group runs
+// Repeat times (its own loop) before the next group, and DelayAfter spaces the
+// groups apart.
 type Group struct {
-	ID      string   `json:"id"`
-	Name    string   `json:"name"`
-	Enabled bool     `json:"enabled"`
-	Modules []Module `json:"modules"`
+	ID         string   `json:"id"`
+	Name       string   `json:"name"`
+	Enabled    bool     `json:"enabled"`
+	Repeat     int      `json:"repeat"`
+	DelayAfter int      `json:"delayAfter"`
+	Modules    []Module `json:"modules"`
 
 	extras map[string]json.RawMessage
 }
 
 // Module is a single click step.
 type Module struct {
-	Kind          string `json:"kind"`
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Enabled       bool   `json:"enabled"`
-	Target        Target `json:"target"`
-	Button        string `json:"button"`
-	Count         int    `json:"count"`
-	ClickInterval int    `json:"clickInterval"`
-	HoldMs        int    `json:"holdMs"`
-	DelayAfter    int    `json:"delayAfter"`
+	Kind    string `json:"kind"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+	Target  Target `json:"target"`
+	Button  string `json:"button"`
+	Count   int    `json:"count"`
+	// ClickInterval is deprecated (kept for JSON compatibility): it is folded
+	// into DelayAfter on load and no longer read by the engine.
+	ClickInterval int `json:"clickInterval"`
+	HoldMs        int `json:"holdMs"`
+	DelayAfter    int `json:"delayAfter"`
 
 	extras map[string]json.RawMessage
 }
@@ -356,6 +364,9 @@ func (g *Group) UnmarshalJSON(b []byte) error {
 	if !has(raw, "enabled") {
 		g.Enabled = true
 	}
+	if !has(raw, "repeat") || g.Repeat < 1 {
+		g.Repeat = DefaultGroupRepeat
+	}
 	return nil
 }
 
@@ -401,6 +412,12 @@ func (m *Module) UnmarshalJSON(b []byte) error {
 	}
 	if !has(raw, "delayAfter") {
 		m.DelayAfter = DefaultDelayAfter
+	}
+	// clickInterval is deprecated: the delay now runs after every click. Fold an
+	// existing interval into delayAfter so old profiles keep their cadence.
+	if m.ClickInterval > 0 {
+		m.DelayAfter = m.ClickInterval
+		m.ClickInterval = 0
 	}
 	return nil
 }

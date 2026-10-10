@@ -18,6 +18,7 @@ const (
 const (
 	DefaultHoldMs        = 10
 	DefaultDelayAfter    = 250
+	DefaultGroupRepeat   = 1
 	DefaultMaxRuntimeSec = 3600
 	DefaultLoopDelayMin  = 250
 	DefaultLoopDelayMax  = 250
@@ -52,7 +53,7 @@ func NewGroup(name string) Group {
 	if name == "" {
 		name = "New group"
 	}
-	return Group{ID: "g_" + newHex(), Name: name, Enabled: true, Modules: []Module{}}
+	return Group{ID: "g_" + newHex(), Name: name, Enabled: true, Repeat: DefaultGroupRepeat, Modules: []Module{}}
 }
 
 // NewModule returns a freshly added module: cursor-targeted, left button, one

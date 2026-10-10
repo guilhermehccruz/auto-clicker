@@ -43,7 +43,6 @@ export function SettingsDialog({
           <ul className="text-[12px] text-neutral-300">
             <li className="mono">F8 · Run / Stop</li>
             <li className="mono">F9 · Pause / Resume</li>
-            <li className="mono">Ctrl+Shift+F12 · Panic</li>
           </ul>
           <p className="mt-1 text-[11px] text-neutral-500">
             Source: {diagnostics?.hotkeySource ?? "—"}. Rebinding is Phase 2.

@@ -140,13 +140,6 @@ export function OpenProfilesDir(): $CancellablePromise<void> {
 }
 
 /**
- * Panic aborts immediately and releases inputs.
- */
-export function Panic(): $CancellablePromise<void> {
-    return $Call.ByID(3125584712);
-}
-
-/**
  * Pause pauses the run.
  */
 export function Pause(): $CancellablePromise<void> {
@@ -221,7 +214,7 @@ export function Status(): $CancellablePromise<engine$0.Progress> {
 }
 
 /**
- * Stop requests a graceful stop.
+ * Stop cancels the run immediately, releasing all inputs.
  */
 export function Stop(): $CancellablePromise<void> {
     return $Call.ByID(565513769);

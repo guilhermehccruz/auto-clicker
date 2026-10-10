@@ -27,7 +27,6 @@ const (
 const (
 	ReasonDone       = "done"
 	ReasonUser       = "user"
-	ReasonPanic      = "panic"
 	ReasonMaxRuntime = "maxRuntime"
 	ReasonError      = "error"
 )
@@ -156,12 +155,17 @@ func (e *Engine) Run(p *model.Profile) error {
 	if p == nil {
 		return errors.New("engine: nil profile")
 	}
-	enabled := p.EnabledModules()
-	if len(enabled) == 0 {
-		return ErrNoModules
-	}
 	snap := *p
 	snap.Modules = append([]model.Module(nil), p.Modules...)
+	snap.Groups = append([]model.Group(nil), p.Groups...)
+	for i := range snap.Groups {
+		snap.Groups[i].Modules = append([]model.Module(nil), snap.Groups[i].Modules...)
+	}
+	plan := execPlan(&snap)
+	total := planTotal(plan)
+	if total == 0 {
+		return ErrNoModules
+	}
 
 	e.mu.Lock()
 	if e.state != StateIdle {
@@ -174,7 +178,7 @@ func (e *Engine) Run(p *model.Profile) error {
 	e.paused = false
 	e.stopRequested = false
 	e.profileName = snap.Name
-	e.moduleTotal = len(enabled)
+	e.moduleTotal = total
 	e.iteration = 0
 	e.clicks = 0
 	e.active = 0
@@ -186,14 +190,66 @@ func (e *Engine) Run(p *model.Profile) error {
 	e.mu.Unlock()
 
 	e.emit(true)
-	go e.loop(ctx, &snap, enabled)
+	go e.loop(ctx, &snap, plan)
 	return nil
 }
 
-func (e *Engine) loop(ctx context.Context, p *model.Profile, enabled []model.Module) {
+// execBlock is one unit of a pass: the ungrouped modules (group == nil) or one
+// enabled group's enabled modules, repeated repeat times.
+type execBlock struct {
+	group   *model.Group
+	modules []model.Module
+	repeat  int
+}
+
+func enabledModules(list []model.Module) []model.Module {
+	out := make([]model.Module, 0, len(list))
+	for _, m := range list {
+		if m.Enabled {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// execPlan flattens a profile into ordered blocks: ungrouped modules first,
+// then each enabled group. Groups carry their own repeat count.
+func execPlan(p *model.Profile) []execBlock {
+	var blocks []execBlock
+	if mods := enabledModules(p.Modules); len(mods) > 0 {
+		blocks = append(blocks, execBlock{modules: mods, repeat: 1})
+	}
+	for i := range p.Groups {
+		g := &p.Groups[i]
+		if !g.Enabled {
+			continue
+		}
+		mods := enabledModules(g.Modules)
+		if len(mods) == 0 {
+			continue
+		}
+		repeat := g.Repeat
+		if repeat < 1 {
+			repeat = 1
+		}
+		blocks = append(blocks, execBlock{group: g, modules: mods, repeat: repeat})
+	}
+	return blocks
+}
+
+// planTotal counts module executions in one pass (group repeats included).
+func planTotal(blocks []execBlock) int {
+	n := 0
+	for _, b := range blocks {
+		n += len(b.modules) * b.repeat
+	}
+	return n
+}
+
+func (e *Engine) loop(ctx context.Context, p *model.Profile, plan []execBlock) {
 	defer func() {
 		_ = e.drv.ReleaseAll()
-		e.finish(ctx)
+		e.finish()
 	}()
 
 	for {
@@ -206,29 +262,46 @@ func (e *Engine) loop(ctx context.Context, p *model.Profile, enabled []model.Mod
 		e.mu.Unlock()
 		e.emit(true)
 
-		for i, m := range enabled {
-			if e.shouldStop(ctx) {
-				return
-			}
-			e.mu.Lock()
-			e.moduleIndex = i + 1
-			e.moduleID = m.ID
-			e.moduleLabel = m.Label()
-			e.clickIndex = 0
-			e.clickTotal = m.Count
-			e.mu.Unlock()
-			e.emit(true)
-
-			if err := e.runModule(ctx, m); err != nil {
-				switch {
-				case errors.Is(err, errMaxRuntime):
-					e.setStop(ReasonMaxRuntime, "")
-				case errors.Is(err, errInjection):
-					e.setStop(ReasonError, err.Error())
-				case errors.Is(err, errStopped):
-					// shouldStop already recorded the reason.
+		idx := 0
+		for bi, b := range plan {
+			// A group runs its block repeat times before the next group.
+			for r := 0; r < b.repeat; r++ {
+				if e.shouldStop(ctx) {
+					return
 				}
-				return
+				for _, m := range b.modules {
+					if e.shouldStop(ctx) {
+						return
+					}
+					idx++
+					e.mu.Lock()
+					e.moduleIndex = idx
+					e.moduleID = m.ID
+					e.moduleLabel = m.Label()
+					e.clickIndex = 0
+					e.clickTotal = m.Count
+					e.mu.Unlock()
+					e.emit(true)
+
+					if err := e.runModule(ctx, m); err != nil {
+						switch {
+						case errors.Is(err, errMaxRuntime):
+							e.setStop(ReasonMaxRuntime, "")
+						case errors.Is(err, errInjection):
+							e.setStop(ReasonError, err.Error())
+						case errors.Is(err, errStopped):
+							// shouldStop already recorded the reason.
+						}
+						return
+					}
+				}
+			}
+			// Delay between groups: skip after the last block, which the loop
+			// delay already covers.
+			if b.group != nil && bi < len(plan)-1 && b.group.DelayAfter > 0 {
+				if err := e.delay(ctx, time.Duration(b.group.DelayAfter)*time.Millisecond); err != nil {
+					return
+				}
 			}
 		}
 
@@ -252,11 +325,10 @@ var (
 	errStopped    = errors.New("run stopped")
 )
 
-// runModule executes one module's clicks. clickInterval is an additional pause
-// AFTER the click completes: the button is released, then we wait clickInterval
-// before the next click. So the period is holdMs + clickInterval.
+// runModule executes one module's clicks. delayAfter is applied after every
+// click — including the last — so it is the single inter-click gap: it spaces
+// consecutive clicks of the module and the gap to the next module/group.
 func (e *Engine) runModule(ctx context.Context, m model.Module) error {
-	interval := time.Duration(m.ClickInterval) * time.Millisecond
 	moveOnly := m.Button == model.ButtonNone
 	var btn input.Button
 	if !moveOnly {
@@ -266,6 +338,7 @@ func (e *Engine) runModule(ctx context.Context, m model.Module) error {
 			return err
 		}
 	}
+	gap := time.Duration(m.DelayAfter) * time.Millisecond
 
 	for k := 0; k < m.Count; k++ {
 		if e.maxRuntimeHit() {
@@ -309,16 +382,10 @@ func (e *Engine) runModule(ctx context.Context, m model.Module) error {
 		e.mu.Unlock()
 		e.emit(false)
 
-		if k < m.Count-1 && interval > 0 {
-			if err := e.delay(ctx, interval); err != nil {
+		if gap > 0 {
+			if err := e.delay(ctx, gap); err != nil {
 				return err
 			}
-		}
-	}
-
-	if m.DelayAfter > 0 {
-		if err := e.delay(ctx, time.Duration(m.DelayAfter)*time.Millisecond); err != nil {
-			return err
 		}
 	}
 	return nil
@@ -373,7 +440,7 @@ func (e *Engine) shouldStop(ctx context.Context) bool {
 		return true
 	}
 	if ctx.Err() != nil {
-		e.setStop(ReasonPanic, "")
+		e.setStop(ReasonUser, "")
 		return true
 	}
 	return false
@@ -417,22 +484,9 @@ func (e *Engine) Resume() error {
 	return nil
 }
 
-// Stop is graceful: finish the current click, stop before the next.
+// Stop cancels immediately, interrupting sleeps and releasing all inputs. It is
+// the single stop path (there is no separate panic).
 func (e *Engine) Stop() error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.state == StateIdle {
-		return nil
-	}
-	e.stopRequested = true
-	e.paused = false
-	e.state = StateStopping
-	e.cond.Broadcast()
-	return nil
-}
-
-// Panic cancels immediately, interrupting sleeps and releasing all inputs.
-func (e *Engine) Panic() error {
 	e.mu.Lock()
 	if e.state == StateIdle {
 		e.mu.Unlock()
@@ -450,11 +504,11 @@ func (e *Engine) Panic() error {
 	return nil
 }
 
-func (e *Engine) finish(ctx context.Context) {
+func (e *Engine) finish() {
 	e.mu.Lock()
 	if e.stopReason == "" {
-		if ctx.Err() != nil {
-			e.stopReason = ReasonPanic
+		if e.stopRequested {
+			e.stopReason = ReasonUser
 		} else {
 			e.stopReason = ReasonDone
 		}

@@ -160,9 +160,8 @@ func TestSpacingMath(t *testing.T) {
 	m := model.NewModule()
 	m.Target = model.NewAbsoluteTarget(10, 10)
 	m.Count = 3
-	m.ClickInterval = 90
 	m.HoldMs = 10
-	m.DelayAfter = 250
+	m.DelayAfter = 90
 
 	clk := newAutoClock()
 	drv := input.NewFake()
@@ -173,9 +172,8 @@ func TestSpacingMath(t *testing.T) {
 	}
 	waitIdle(t, e)
 
-	// clickInterval is additive: after each click (hold 10) we wait the full
-	// 90 ms, then the 250 ms delayAfter.
-	want := []time.Duration{90 * time.Millisecond, 90 * time.Millisecond, 250 * time.Millisecond}
+	// The delay runs after every click, including the last: three 90 ms gaps.
+	want := []time.Duration{90 * time.Millisecond, 90 * time.Millisecond, 90 * time.Millisecond}
 	got := clk.Sleeps()
 	if len(got) != len(want) {
 		t.Fatalf("sleeps = %v, want %v", got, want)
@@ -231,12 +229,11 @@ func TestLoopDelayDrawUniformInclusive(t *testing.T) {
 	}
 }
 
-func TestStopBeforeNextClick(t *testing.T) {
+func TestStopReleasesWithoutTrailingClick(t *testing.T) {
 	m := model.NewModule()
 	m.Count = 5
-	m.ClickInterval = 100
+	m.DelayAfter = 100
 	m.HoldMs = 0
-	m.DelayAfter = 0
 
 	clk := newGateClock()
 	drv := input.NewFake()
@@ -248,11 +245,10 @@ func TestStopBeforeNextClick(t *testing.T) {
 	if err := e.Stop(); err != nil {
 		t.Fatal(err)
 	}
-	clk.release()
 	waitIdle(t, e)
 
 	if got := len(drv.Clicks()); got != 1 {
-		t.Errorf("clicks = %d, want 1 (stop before next click)", got)
+		t.Errorf("clicks = %d, want 1 (no trailing click)", got)
 	}
 	if got := e.Status().StopReason; got != ReasonUser {
 		t.Errorf("stop reason = %q, want user", got)
@@ -262,42 +258,74 @@ func TestStopBeforeNextClick(t *testing.T) {
 	}
 }
 
-func TestPanicReleasesWithoutTrailingClick(t *testing.T) {
+func TestGroupRepeatRunsBlockNTimes(t *testing.T) {
 	m := model.NewModule()
-	m.Count = 5
-	m.ClickInterval = 100
+	m.Count = 1
 	m.HoldMs = 0
 	m.DelayAfter = 0
 
-	clk := newGateClock()
+	p := onceProfile() // no ungrouped modules
+	g := model.NewGroup("farm")
+	g.Repeat = 3
+	g.Modules = []model.Module{m}
+	p.Groups = []model.Group{g}
+
 	drv := input.NewFake()
-	e := New(drv, WithClock(clk))
-	if err := e.Run(onceProfile(m)); err != nil {
-		t.Fatal(err)
-	}
-	<-clk.req
-	if err := e.Panic(); err != nil {
+	e := New(drv, WithClock(newAutoClock()))
+	if err := e.Run(p); err != nil {
 		t.Fatal(err)
 	}
 	waitIdle(t, e)
 
-	if got := len(drv.Clicks()); got != 1 {
-		t.Errorf("clicks = %d, want 1 (no trailing click)", got)
+	if got := len(drv.Clicks()); got != 3 {
+		t.Errorf("clicks = %d, want 3 (group repeat)", got)
 	}
-	if got := e.Status().StopReason; got != ReasonPanic {
-		t.Errorf("stop reason = %q, want panic", got)
+}
+
+func TestGroupDelayAfterBetweenGroups(t *testing.T) {
+	m := model.NewModule()
+	m.Count = 1
+	m.HoldMs = 0
+	m.DelayAfter = 0
+
+	p := onceProfile()
+	g1 := model.NewGroup("a")
+	g1.Modules = []model.Module{m}
+	g1.DelayAfter = 700
+	g2 := model.NewGroup("b")
+	g2.Modules = []model.Module{m}
+	g2.DelayAfter = 700 // last group: must NOT apply
+	p.Groups = []model.Group{g1, g2}
+
+	clk := newAutoClock()
+	drv := input.NewFake()
+	e := New(drv, WithClock(clk))
+	if err := e.Run(p); err != nil {
+		t.Fatal(err)
 	}
-	if drv.ReleaseAllCount == 0 {
-		t.Error("ReleaseAll must run on panic")
+	waitIdle(t, e)
+
+	if got := len(drv.Clicks()); got != 2 {
+		t.Errorf("clicks = %d, want 2", got)
+	}
+	// Only the first group's DelayAfter fires: the last group is skipped so the
+	// loop delay covers the gap to the next pass.
+	count := 0
+	for _, d := range clk.Sleeps() {
+		if d == 700*time.Millisecond {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("group delay slept %d times, want 1 (last group skipped); sleeps=%v", count, clk.Sleeps())
 	}
 }
 
 func TestPauseGatesAndResumes(t *testing.T) {
 	m := model.NewModule()
 	m.Count = 2
-	m.ClickInterval = 100
+	m.DelayAfter = 100
 	m.HoldMs = 0
-	m.DelayAfter = 0
 
 	clk := newGateClock()
 	drv := input.NewFake()
@@ -322,6 +350,8 @@ func TestPauseGatesAndResumes(t *testing.T) {
 	if err := e.Resume(); err != nil {
 		t.Fatal(err)
 	}
+	<-clk.req // the second click's delay
+	clk.release()
 	waitIdle(t, e)
 	if got := len(drv.Clicks()); got != 2 {
 		t.Errorf("clicks after resume = %d, want 2", got)
@@ -354,9 +384,8 @@ func TestInjectionErrorAborts(t *testing.T) {
 func TestMaxRuntimeStops(t *testing.T) {
 	m := model.NewModule()
 	m.Count = 100
-	m.ClickInterval = 1000
+	m.DelayAfter = 1000
 	m.HoldMs = 0
-	m.DelayAfter = 0
 
 	p := onceProfile(m)
 	p.Failsafe.MaxRuntimeSec = 1

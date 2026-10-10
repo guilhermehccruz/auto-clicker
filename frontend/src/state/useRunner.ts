@@ -10,7 +10,6 @@ export interface RunnerState {
   stop: () => Promise<void>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
-  panic: () => Promise<void>;
 }
 
 const idle: Progress = {
@@ -42,6 +41,5 @@ export function useRunner(api: Api): RunnerState {
     stop: () => api.stop(),
     pause: () => api.pause(),
     resume: () => api.resume(),
-    panic: () => api.panic(),
   };
 }

@@ -22,7 +22,8 @@ export interface Module {
   target: Target;
   button: ButtonName;
   count: number;
-  clickInterval: number;
+  /** @deprecated folded into delayAfter on load; no longer edited or run. */
+  clickInterval?: number;
   holdMs: number;
   delayAfter: number;
 }
@@ -52,6 +53,8 @@ export interface Group {
   id: string;
   name: string;
   enabled: boolean;
+  repeat: number;
+  delayAfter: number;
   modules: Module[];
 }
 
@@ -139,7 +142,6 @@ export interface Progress {
 export interface Hotkeys {
   run: string;
   pause: string;
-  panic: string;
 }
 
 export interface WindowGeometry {
@@ -162,14 +164,12 @@ export interface Settings {
 
 export const MODULE_DEFAULTS = {
   count: 1,
-  clickInterval: 0,
   holdMs: 10,
   delayAfter: 250,
 } as const;
 
 export const RANGES = {
   count: [1, 1000],
-  clickInterval: [0, 60000],
   holdMs: [0, 1000],
   delayAfter: [0, 3600000],
 } as const;

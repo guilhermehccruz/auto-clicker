@@ -6,18 +6,18 @@ function mod(partial: Partial<Module>): Module {
   return {
     kind: "click", id: "m1", name: "", enabled: true,
     target: { kind: "cursor" }, button: "left",
-    count: 1, clickInterval: 0, holdMs: 10, delayAfter: 250,
+    count: 1, holdMs: 10, delayAfter: 250,
     ...partial,
   };
 }
 
 describe("summary", () => {
   it("renders an absolute module", () => {
-    const m = mod({ target: { kind: "absolute", x: 940, y: 520 }, count: 3, clickInterval: 90 });
-    expect(summary(m)).toBe("(940, 520) left ×3 @90ms hold 10ms");
+    const m = mod({ target: { kind: "absolute", x: 940, y: 520 }, count: 3, delayAfter: 90 });
+    expect(summary(m)).toBe("(940, 520) left ×3 hold 10ms delay 90ms");
   });
   it("renders a cursor module", () => {
-    expect(summary(mod({}))).toBe("at cursor left ×1 hold 10ms");
+    expect(summary(mod({}))).toBe("at cursor left ×1 hold 10ms delay 250ms");
   });
 });
 
