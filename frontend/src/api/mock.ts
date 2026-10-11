@@ -20,7 +20,7 @@ export class MockApi implements Api {
     schemaVersion: 1,
     selectedProfile: "idle-tycoon",
     profilesDir: "~/Documents/auto-clicker",
-    window: { x: 120, y: 80, width: 1100, height: 720, maximized: false },
+    window: { x: 120, y: 80, width: 740, height: 540, maximized: false },
     hotkeys: { run: "F8", pause: "F9" },
     defaultMaxRuntimeSec: 3600,
     theme: "dark",

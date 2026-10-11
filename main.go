@@ -129,11 +129,11 @@ func main() {
 	// window and the service captures the real cursor after PickCountdown
 	// (DESIGN §5.7). This avoids Wayland's window positioning/focus limits.
 	//
-	// Restore the saved geometry, falling back to 1100×720 centered.
+	// Restore the saved geometry, falling back to 740×540 centered.
 	winOpts := application.WebviewWindowOptions{
 		Title:  "Auto Clicker",
-		Width:  1100,
-		Height: 720,
+		Width:  740,
+		Height: 540,
 		URL:    "/",
 	}
 	if saved := svc.GetSettings().Window; saved.W > 0 && saved.H > 0 {
