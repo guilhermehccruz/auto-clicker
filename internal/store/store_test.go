@@ -171,6 +171,70 @@ func TestSettingsRoundTripAndDefaults(t *testing.T) {
 	}
 }
 
+func TestSettingsMigratesFromLegacyDir(t *testing.T) {
+	legacy := t.TempDir()
+	dir := t.TempDir()
+	if err := SaveSettings(legacy, &Settings{SelectedProfile: "old"}); err != nil {
+		t.Fatal(err)
+	}
+	st, err := LoadSettings(dir, legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.SelectedProfile != "old" {
+		t.Fatalf("did not migrate legacy settings: %+v", st)
+	}
+	if _, err := os.Stat(SettingsPath(dir)); err != nil {
+		t.Fatalf("migrated settings not written to the new dir: %v", err)
+	}
+}
+
+func TestListSkipsSettingsFile(t *testing.T) {
+	dir := t.TempDir()
+	s, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveSettings(dir, &Settings{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create("Farm", model.Display{}, 0); err != nil {
+		t.Fatal(err)
+	}
+	list, problems, err := s.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].Name != "Farm" || len(problems) != 0 {
+		t.Fatalf("List = %+v (problems %+v), want just Farm", list, problems)
+	}
+}
+
+func TestCreateNamedSettingsDoesNotClobberSettings(t *testing.T) {
+	dir := t.TempDir()
+	s, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveSettings(dir, &Settings{SelectedProfile: "keep"}); err != nil {
+		t.Fatal(err)
+	}
+	id, err := s.Create("Settings", model.Display{}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id == "settings" {
+		t.Fatalf("profile id must not collide with %s", SettingsFile)
+	}
+	st, err := LoadSettings(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.SelectedProfile != "keep" {
+		t.Fatalf("settings clobbered: %+v", st)
+	}
+}
+
 func TestSingleInstanceLock(t *testing.T) {
 	dir := t.TempDir()
 	l1, err := AcquireLock(dir)

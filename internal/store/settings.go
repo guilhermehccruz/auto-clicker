@@ -49,18 +49,38 @@ func DefaultSettings() Settings {
 	}
 }
 
-// SettingsPath returns the settings file path for a config dir.
-func SettingsPath(configDir string) string { return filepath.Join(configDir, "settings.json") }
+// SettingsFile is the settings filename. It lives in the profiles directory so
+// a profile folder is self-contained (DESIGN §3.8).
+const SettingsFile = "settings.json"
 
-// LoadSettings reads settings, creating defaults on first run.
-func LoadSettings(configDir string) (Settings, error) {
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
+// SettingsPath returns the settings file path inside dir (the profiles dir).
+func SettingsPath(dir string) string { return filepath.Join(dir, SettingsFile) }
+
+// LoadSettings reads settings from dir, creating defaults on first run. Legacy
+// locations are checked in order when dir has no settings yet, and a settings
+// file found there is migrated into dir.
+func LoadSettings(dir string, legacyDirs ...string) (Settings, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return Settings{}, err
 	}
-	b, err := os.ReadFile(SettingsPath(configDir))
+	b, err := os.ReadFile(SettingsPath(dir))
 	if os.IsNotExist(err) {
+		for _, legacy := range legacyDirs {
+			if legacy == "" || legacy == dir {
+				continue
+			}
+			lb, lerr := os.ReadFile(SettingsPath(legacy))
+			if lerr != nil {
+				continue
+			}
+			var st Settings
+			if json.Unmarshal(lb, &st) != nil {
+				continue
+			}
+			return st, SaveSettings(dir, &st)
+		}
 		st := DefaultSettings()
-		return st, SaveSettings(configDir, &st)
+		return st, SaveSettings(dir, &st)
 	}
 	if err != nil {
 		return Settings{}, err
@@ -72,16 +92,16 @@ func LoadSettings(configDir string) (Settings, error) {
 	return st, nil
 }
 
-// SaveSettings atomically writes settings.
-func SaveSettings(configDir string, st *Settings) error {
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
+// SaveSettings atomically writes settings into dir.
+func SaveSettings(dir string, st *Settings) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 	b, err := json.MarshalIndent(st, "", "  ")
 	if err != nil {
 		return err
 	}
-	return WriteFileAtomic(SettingsPath(configDir), b)
+	return WriteFileAtomic(SettingsPath(dir), b)
 }
 
 func knownJSONKeys(v any) map[string]struct{} {

@@ -132,6 +132,9 @@ func (s *Store) List() ([]Summary, []ProblemFile, error) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
+		if e.Name() == SettingsFile {
+			continue // settings.json shares the profiles folder
+		}
 		id := strings.TrimSuffix(e.Name(), ".json")
 		p, err := s.Load(id)
 		if err != nil {

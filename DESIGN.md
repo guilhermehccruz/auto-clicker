@@ -182,8 +182,9 @@ module auto-clicker          // no URL prefix, matching the sibling project's co
 ```
 
 Working name: display **"Auto Clicker"**, slug **`auto-clicker`** used for the binary
-name, the documents folder (`<Documents>/auto-clicker/`) and the config folder
-(`~/.config/auto-clicker/`, `%APPDATA%\auto-clicker\`). Renaming later touches paths and
+name, the profiles+settings folder (`<Documents>/auto-clicker/`) and the runtime config
+folder (`~/.config/auto-clicker/`, `%APPDATA%\auto-clicker\`, holding the single-instance
+lock). Renaming later touches paths and
 CI artifact names, so it is worth confirming before the first release — but it is cheap
 now and nothing in this document depends on the brand.
 
@@ -516,9 +517,11 @@ Rules:
   If a profile that is open with unsaved in-memory edits changed on disk, the app asks
   before discarding the edit rather than silently clobbering either side. A real watcher
   is a Phase 2 candidate.
-- App-level settings live in the OS config dir (`%APPDATA%\auto-clicker\settings.json`,
-  `~/.config/auto-clicker/settings.json`) because they are machine-specific, not
-  shareable content. Their schema is [§3.10](#310-app-settings-schema).
+- `settings.json` lives in the **profiles folder** (`<Documents>/auto-clicker/settings.json`),
+  so a profile folder is self-contained and easy to back up or move. It is skipped when
+  listing profiles, and a profile named "Settings" gets a suffixed id so it can never
+  overwrite it. Its schema is [§3.10](#310-app-settings-schema). The single-instance lock
+  stays in the OS config dir ([§6](#6-safety)), and logs in the state dir.
 - Profiles are plain JSON: back up, diff, or move them between machines by copying the
   folder.
 
@@ -571,8 +574,8 @@ Rules:
 
 ### 3.11 First run and profile creation
 
-- **First launch.** The config dir is created, `settings.json` is written with defaults,
-  the profiles dir is resolved and created, and — if it holds no profiles — the app
+- **First launch.** The profiles dir is resolved and created, `settings.json` is written
+  there with defaults, and — if it holds no profiles — the app
   creates one named **"New profile"** (file `profile.json`) with `modules: []`,
   `loop: { mode: "once", count: 1, loopDelay: { min: 250, max: 250 } }`,
   `failsafe` seeded from `defaultMaxRuntimeSec`, and the current display snapshot. There
@@ -1507,9 +1510,9 @@ Notes:
   group repeats `repeat` times per pass, with `delayAfter` before the next group. Group
   ids are unique within the profile; deleting a group moves its modules to `modules`.
 - Unknown keys at any level are preserved on round-trip.
-- `settings.json` is a separate, machine-specific file, specified in
-  [§3.10](#310-app-settings-schema); it is never part of a profile and never travels with
-  one.
+- `settings.json` sits in the profiles folder but is not a profile, specified in
+  [§3.10](#310-app-settings-schema); it is skipped when listing profiles and never travels
+  inside one.
 
 ---
 

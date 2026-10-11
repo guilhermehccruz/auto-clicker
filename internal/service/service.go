@@ -71,15 +71,15 @@ type PickResult struct {
 type Service struct {
 	mu sync.Mutex
 
-	store     *store.Store
-	configDir string
-	drv       input.Driver
-	engine    *engine.Engine
-	cursor    *cursor.Prober
-	hotkeys   hotkey.Source
-	settings  store.Settings
-	version   string
-	selected  string
+	store       *store.Store
+	settingsDir string
+	drv         input.Driver
+	engine      *engine.Engine
+	cursor      *cursor.Prober
+	hotkeys     hotkey.Source
+	settings    store.Settings
+	version     string
+	selected    string
 
 	pickDone   func(PickResult)
 	focusMain  func()
@@ -98,7 +98,21 @@ func New(opts Options) (*Service, error) {
 		}
 		configDir = d
 	}
-	settings, err := store.LoadSettings(configDir)
+
+	// Settings live next to the profiles (DESIGN §3.8). With an injected store
+	// that is its dir; otherwise the default profiles dir. configDir is only a
+	// legacy fallback so an existing install migrates its settings.
+	settingsDir := ""
+	if opts.Store != nil {
+		settingsDir = opts.Store.Dir
+	} else {
+		d, err := store.DefaultProfilesDir()
+		if err != nil {
+			return nil, err
+		}
+		settingsDir = d
+	}
+	settings, err := store.LoadSettings(settingsDir, configDir)
 	if err != nil {
 		return nil, err
 	}
@@ -107,10 +121,7 @@ func New(opts Options) (*Service, error) {
 	if st == nil {
 		dir := settings.ProfilesDir
 		if dir == "" {
-			dir, err = store.DefaultProfilesDir()
-			if err != nil {
-				return nil, err
-			}
+			dir = settingsDir
 		}
 		st, err = store.New(dir)
 		if err != nil {
@@ -126,15 +137,15 @@ func New(opts Options) (*Service, error) {
 		}
 	}
 	s := &Service{
-		store:     st,
-		configDir: configDir,
-		drv:       drv,
-		cursor:    cursor.New(drv),
-		settings:  settings,
-		version:   opts.Version,
-		selected:  settings.SelectedProfile,
-		pickDone:  opts.PickDone,
-		focusMain: opts.FocusMain,
+		store:       st,
+		settingsDir: settingsDir,
+		drv:         drv,
+		cursor:      cursor.New(drv),
+		settings:    settings,
+		version:     opts.Version,
+		selected:    settings.SelectedProfile,
+		pickDone:    opts.PickDone,
+		focusMain:   opts.FocusMain,
 	}
 	hk := opts.Hotkeys
 	if hk == nil {
@@ -432,7 +443,7 @@ func (s *Service) SaveSettings(st store.Settings) error {
 	s.mu.Lock()
 	s.settings = st
 	s.mu.Unlock()
-	return store.SaveSettings(s.configDir, &st)
+	return store.SaveSettings(s.settingsDir, &st)
 }
 
 // ProfilesDir returns the resolved profiles folder.
@@ -461,7 +472,7 @@ func (s *Service) selectProfile(id string) error {
 	s.settings.SelectedProfile = id
 	st := s.settings
 	s.mu.Unlock()
-	return store.SaveSettings(s.configDir, &st)
+	return store.SaveSettings(s.settingsDir, &st)
 }
 
 func (s *Service) desktopSize() (int, int) {
