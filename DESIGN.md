@@ -548,7 +548,7 @@ always writes every key so the file is self-describing.
   "schemaVersion": 1,
   "selectedProfile": "idle-tycoon",   // profile id (filename stem); "" = none
   "profilesDir": "",                  // "" = resolve the OS default; else absolute override
-  "window": { "x": 120, "y": 80, "width": 740, "height": 540, "maximized": false },
+  "window": { "x": 120, "y": 80, "width": 1100, "height": 720, "maximized": false },
   "hotkeys": { "run": "F8", "pause": "F9" },
   "defaultMaxRuntimeSec": 3600,       // seed for NEW profiles; 0 = unlimited
   "theme": "dark"                     // "dark" | "light" | "system" (light/system = Phase 2)
@@ -738,7 +738,7 @@ fatal, so a failure only logs.
    back to the first), and create the first-run template if the folder is empty
    ([§3.11](#311-first-run-and-profile-creation)).
 4. Show the main window with the restored geometry. The window position, size and
-   maximised state come from `settings.window`, falling back to **740×540 centered** on
+   maximised state come from `settings.window`, falling back to **1100×720 centered** on
    first run. They are written back on move/resize/maximise (debounced) and once more on
    shutdown ([§3.10](#310-app-settings-schema)).
 5. **Initialize the input backend and probe capabilities on a background goroutine.** The

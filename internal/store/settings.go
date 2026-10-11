@@ -42,7 +42,7 @@ type Settings struct {
 func DefaultSettings() Settings {
 	return Settings{
 		SchemaVersion:        model.SchemaVersion,
-		Window:               Window{W: 740, H: 540},
+		Window:               Window{W: 1100, H: 720},
 		Hotkeys:              Hotkeys{Run: "F8", Pause: "F9"},
 		DefaultMaxRuntimeSec: model.DefaultMaxRuntimeSec,
 		Theme:                "dark",
