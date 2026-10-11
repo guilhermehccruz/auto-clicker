@@ -619,8 +619,8 @@ Rules:
 - **Groups are gated, not flattened away.** The runner still takes a snapshot, but keeps
   the ungrouped block and each enabled group as a distinct block so the group loop and
   delay survive ([§3.1](#31-execution-semantics)).
-- **Deleting a group keeps its clicks**: they move to the ungrouped list (never silently
-  deleted).
+- **Deleting a group deletes its clicks too** (after a confirmation that names the click
+  count). Nothing is ever silently dropped; the confirm is the guard.
 - **Backward compatible.** `groups` is absent in older files and defaults to empty, so a
   pre-groups profile is all-ungrouped. `groupId` is *not* stored on the module — membership
   is structural (which array it lives in), which keeps the JSON unambiguous.
@@ -1508,7 +1508,8 @@ Notes:
 - **Groups** ([§3.12](#312-groups)): ungrouped `modules` run first, then each enabled
   `groups[]` entry in order; a module runs only if both it and its group are enabled. Each
   group repeats `repeat` times per pass, with `delayAfter` before the next group. Group
-  ids are unique within the profile; deleting a group moves its modules to `modules`.
+  ids are unique within the profile; deleting a group also deletes its modules (with a
+  confirmation).
 - Unknown keys at any level are preserved on round-trip.
 - `settings.json` sits in the profiles folder but is not a profile, specified in
   [§3.10](#310-app-settings-schema); it is skipped when listing profiles and never travels

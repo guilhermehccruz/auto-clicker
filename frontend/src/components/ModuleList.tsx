@@ -400,7 +400,12 @@ function Section({
                   disabled={locked}
                   danger
                   onClick={() => {
-                    if (confirm(`Delete group "${g.name}"? Its clicks move to the ungrouped list.`)) onRemoveGroup(g.id);
+                    const n = g.modules.length;
+                    const msg =
+                      n > 0
+                        ? `Delete group "${g.name}" and its ${n} click${n === 1 ? "" : "s"}? This cannot be undone.`
+                        : `Delete group "${g.name}"?`;
+                    if (confirm(msg)) onRemoveGroup(g.id);
                   }}
                 >
                   Delete group

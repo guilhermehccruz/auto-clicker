@@ -313,8 +313,7 @@ export function useProfiles(api: Api): ProfilesState {
       update((p) => {
         const idx = p.groups.findIndex((g) => g.id === id);
         if (idx < 0) return p;
-        // Keep the modules: move them to the ungrouped list rather than deleting.
-        p.modules.push(...p.groups[idx].modules);
+        // Deleting a group deletes the clicks inside it.
         p.groups.splice(idx, 1);
         return p;
       }),
