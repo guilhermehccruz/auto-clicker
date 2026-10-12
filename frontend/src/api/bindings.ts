@@ -7,6 +7,7 @@ import type {
   ProblemFile,
   Progress,
   Settings,
+  UpdateInfo,
 } from "./types";
 import { MockApi } from "./mock";
 import { WailsApi } from "./wails";
@@ -39,6 +40,8 @@ export interface Api {
   pause(): Promise<void>;
   resume(): Promise<void>;
   status(): Promise<Progress>;
+  checkUpdate(): Promise<UpdateInfo>;
+  installUpdate(): Promise<void>;
 
   getSettings(): Promise<Settings>;
   saveSettings(s: Settings): Promise<void>;

@@ -999,6 +999,30 @@ toggle or delete modules. `Esc` closes the topmost overlay/dialog and does nothi
 none is open. During a run the UI is locked ([§3.1](#31-execution-semantics)), so only
 F8/F9 are live.
 
+### 5.9 Self-update
+
+On startup the app checks the **latest GitHub Release** of `guilhermehccruz/auto-clicker`
+through the Wails v3 updater (`pkg/updater` + the `github` provider). It runs silently:
+nothing opens unless a newer version exists, in which case the header shows a
+`⬆ vX.Y.Z available` banner with an **Update** button.
+
+- **Version source.** The binary embeds the release tag (`-X main.version=…`); the leading
+  `v` is stripped before comparison. Non-semver builds (`dev`) skip the updater entirely.
+- **Install.** Update downloads the platform asset (`.tar.gz` on Linux, `.zip` on
+  Windows), verifies its **SHA-256** against the release's `checksums.txt`, swaps the
+  binary via the updater's helper, and relaunches. Requires the binary to live in a
+  user-writable location (the portable download is); an installed-to-`/usr/local/bin`
+  build would need elevation.
+- **Release assets.** Each archive contains **exactly one top-level entry** (the binary) —
+  the updater rejects multi-entry archives. Run instructions live in the release notes.
+  CI publishes a `checksums.txt` sidecar alongside the archives.
+- **Trust.** Verification is checksum-only today: it detects corruption and a
+  partially-replaced asset, but the digest comes from the same release, so it is **not** an
+  authenticity guarantee. A pinned signing key (`updater.Config.PublicKey`) is the planned
+  hardening step.
+- **Channel.** Every push to `main` publishes a normal (non-prerelease) release, so the
+  app updates to the newest build. Tagging `v*` still publishes a semantic version.
+
 ---
 
 ## 6. Safety

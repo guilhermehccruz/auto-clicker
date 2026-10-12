@@ -42,6 +42,13 @@ export function Capabilities(): $CancellablePromise<input$0.Capabilities> {
 }
 
 /**
+ * CheckUpdate reports whether a newer release is available.
+ */
+export function CheckUpdate(): $CancellablePromise<$models.UpdateInfo> {
+    return $Call.ByID(4277392938);
+}
+
+/**
  * CloseHotkeys releases the global shortcuts.
  */
 export function CloseHotkeys(): $CancellablePromise<void> {
@@ -109,6 +116,13 @@ export function GetSettings(): $CancellablePromise<store$0.Settings> {
  */
 export function HotkeySourceName(): $CancellablePromise<string> {
     return $Call.ByID(1166970513);
+}
+
+/**
+ * InstallUpdate downloads and installs the pending update, then restarts.
+ */
+export function InstallUpdate(): $CancellablePromise<void> {
+    return $Call.ByID(2641689853);
 }
 
 /**

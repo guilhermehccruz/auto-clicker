@@ -139,6 +139,13 @@ export interface Progress {
   error?: string;
 }
 
+export interface UpdateInfo {
+  available: boolean;
+  version: string;
+  notes: string;
+  url: string;
+}
+
 export interface Hotkeys {
   run: string;
   pause: string;

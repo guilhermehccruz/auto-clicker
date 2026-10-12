@@ -7,5 +7,6 @@ export {
 };
 
 export type {
-    Diagnostics
+    Diagnostics,
+    UpdateInfo
 } from "./models.js";

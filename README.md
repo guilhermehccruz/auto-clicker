@@ -13,7 +13,9 @@ itch. It is not a general-purpose product and it is not trying to become one.
   sequentially.
 - Each module clicks at fixed screen coordinates **or** at the current cursor position.
 - Run once, N times, or forever, with drift-free timing.
-- Profiles with autosave, optional groups, a global panic hotkey, and a runtime cap.
+- Profiles with autosave, optional groups, a global stop hotkey, and a runtime cap.
+- Checks GitHub Releases on startup and, when a newer version exists, offers an in-app
+  update that downloads, checksum-verifies and swaps the binary in place.
 - Ships as one desktop binary per OS (Linux + Windows), no installer and no runtime
   dependencies beyond the OS webview. On Linux the app adds itself to the application
   menu on first run (a `.desktop` entry), so it launches like any other app.

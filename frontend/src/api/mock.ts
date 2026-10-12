@@ -8,6 +8,7 @@ import type {
   ProblemFile,
   Progress,
   Settings,
+  UpdateInfo,
 } from "./types";
 import type { Api } from "./bindings";
 import { validateProfile } from "../lib/validate";
@@ -231,6 +232,12 @@ export class MockApi implements Api {
     this.paused = false;
     this.emit({ ...this.progress, state: "running" });
   }
+
+  async checkUpdate(): Promise<UpdateInfo> {
+    return { available: false, version: "", notes: "", url: "" };
+  }
+
+  async installUpdate(): Promise<void> {}
 
   async status(): Promise<Progress> {
     return this.progress;

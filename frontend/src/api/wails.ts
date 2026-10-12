@@ -11,6 +11,7 @@ import type {
   ProblemFile,
   Progress,
   Settings,
+  UpdateInfo,
 } from "./types";
 
 // WailsApi adapts the generated bindings to the UI's Api interface. It is used
@@ -104,6 +105,14 @@ export class WailsApi implements Api {
 
   async resume(): Promise<void> {
     await Svc.Service.Resume();
+  }
+
+  async checkUpdate(): Promise<UpdateInfo> {
+    return (await Svc.Service.CheckUpdate()) as unknown as UpdateInfo;
+  }
+
+  async installUpdate(): Promise<void> {
+    await Svc.Service.InstallUpdate();
   }
 
   async status(): Promise<Progress> {

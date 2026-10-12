@@ -58,6 +58,11 @@ type Options struct {
 	// FocusMain brings the app window back to the front after a pick (the game
 	// may have been fullscreen and focused).
 	FocusMain func()
+	// CheckUpdate reports whether a newer release is available. Wired by main
+	// to the Wails updater; nil disables updates (e.g. dev builds).
+	CheckUpdate func() (UpdateInfo, error)
+	// InstallUpdate downloads and installs the pending update, then restarts.
+	InstallUpdate func() error
 }
 
 // PickResult is the outcome of a pick; Ok is false on cancel.
@@ -65,6 +70,14 @@ type PickResult struct {
 	X  int  `json:"x"`
 	Y  int  `json:"y"`
 	Ok bool `json:"ok"`
+}
+
+// UpdateInfo describes an available release.
+type UpdateInfo struct {
+	Available bool   `json:"available"`
+	Version   string `json:"version"`
+	Notes     string `json:"notes"`
+	URL       string `json:"url"`
 }
 
 // Service is the app's operation surface.
@@ -81,11 +94,13 @@ type Service struct {
 	version     string
 	selected    string
 
-	pickDone   func(PickResult)
-	focusMain  func()
-	pickMu     sync.Mutex
-	picking    bool
-	pickCancel chan struct{}
+	pickDone      func(PickResult)
+	focusMain     func()
+	checkUpdate   func() (UpdateInfo, error)
+	installUpdate func() error
+	pickMu        sync.Mutex
+	picking       bool
+	pickCancel    chan struct{}
 }
 
 // New builds a Service, loading settings and opening the store.
@@ -137,15 +152,17 @@ func New(opts Options) (*Service, error) {
 		}
 	}
 	s := &Service{
-		store:       st,
-		settingsDir: settingsDir,
-		drv:         drv,
-		cursor:      cursor.New(drv),
-		settings:    settings,
-		version:     opts.Version,
-		selected:    settings.SelectedProfile,
-		pickDone:    opts.PickDone,
-		focusMain:   opts.FocusMain,
+		store:         st,
+		settingsDir:   settingsDir,
+		drv:           drv,
+		cursor:        cursor.New(drv),
+		settings:      settings,
+		version:       opts.Version,
+		selected:      settings.SelectedProfile,
+		pickDone:      opts.PickDone,
+		focusMain:     opts.FocusMain,
+		checkUpdate:   opts.CheckUpdate,
+		installUpdate: opts.InstallUpdate,
 	}
 	hk := opts.Hotkeys
 	if hk == nil {
@@ -463,6 +480,22 @@ func (s *Service) OpenLogDir() error {
 
 // Version returns the embedded app version.
 func (s *Service) Version() string { return s.version }
+
+// CheckUpdate reports whether a newer release is available.
+func (s *Service) CheckUpdate() (UpdateInfo, error) {
+	if s.checkUpdate == nil {
+		return UpdateInfo{}, nil
+	}
+	return s.checkUpdate()
+}
+
+// InstallUpdate downloads and installs the pending update, then restarts.
+func (s *Service) InstallUpdate() error {
+	if s.installUpdate == nil {
+		return errors.New("update: not available")
+	}
+	return s.installUpdate()
+}
 
 // --- helpers --------------------------------------------------------------
 

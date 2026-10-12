@@ -6,12 +6,17 @@
 package main
 
 import (
+	"context"
 	"embed"
+	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
+	"github.com/wailsapp/wails/v3/pkg/updater"
+	"github.com/wailsapp/wails/v3/pkg/updater/providers/github"
 
 	"auto-clicker/internal/desktop"
 	"auto-clicker/internal/engine"
@@ -61,6 +66,8 @@ func main() {
 	// exists, and called from OnShutdown.
 	var saveGeometry func()
 	var geomTimer *time.Timer
+	// updaterReady gates the update hooks until the updater is configured.
+	var updaterReady bool
 	svc, err := service.New(service.Options{
 		Version:   version,
 		ConfigDir: configDir,
@@ -79,6 +86,33 @@ func main() {
 				mainWin.Show()
 				mainWin.Focus()
 			}
+		},
+		CheckUpdate: func() (service.UpdateInfo, error) {
+			if !updaterReady {
+				return service.UpdateInfo{}, nil
+			}
+			rel, err := app.Updater.Check(context.Background())
+			if err != nil {
+				return service.UpdateInfo{}, err
+			}
+			if rel == nil {
+				return service.UpdateInfo{}, nil
+			}
+			return service.UpdateInfo{
+				Available: true,
+				Version:   rel.Version,
+				Notes:     rel.Notes,
+				URL:       "https://github.com/guilhermehccruz/auto-clicker/releases/tag/v" + rel.Version,
+			}, nil
+		},
+		InstallUpdate: func() error {
+			if !updaterReady {
+				return errors.New("update: not available")
+			}
+			if err := app.Updater.DownloadAndInstall(context.Background()); err != nil {
+				return err
+			}
+			return app.Updater.Restart(context.Background())
 		},
 	})
 	if err != nil {
@@ -110,6 +144,25 @@ func main() {
 			}
 		},
 	})
+
+	// Self-update against GitHub Releases. Skipped for non-semver builds (dev).
+	if v := strings.TrimPrefix(version, "v"); v != "" && v != "dev" {
+		provider, perr := github.New(github.Config{
+			Repository:    "guilhermehccruz/auto-clicker",
+			ChecksumAsset: "checksums.txt",
+		})
+		if perr != nil {
+			log.Printf("updater: provider: %v", perr)
+		} else if ierr := app.Updater.Init(updater.Config{
+			CurrentVersion: v,
+			Providers:      []updater.Provider{provider},
+			Window:         updater.WindowNone,
+		}); ierr != nil {
+			log.Printf("updater: init: %v", ierr)
+		} else {
+			updaterReady = true
+		}
+	}
 
 	if lockErr == store.ErrLocked {
 		// A second launch starts no services and just reports (DESIGN §6).

@@ -25,3 +25,13 @@ export interface Diagnostics {
     "profilesDir": string;
     "logDir": string;
 }
+
+/**
+ * UpdateInfo describes an available release.
+ */
+export interface UpdateInfo {
+    "available": boolean;
+    "version": string;
+    "notes": string;
+    "url": string;
+}

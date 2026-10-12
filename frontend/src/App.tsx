@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createApi } from "./api/bindings";
-import type { Failsafe, Module } from "./api/types";
+import type { Failsafe, Module, UpdateInfo } from "./api/types";
 import { BottomBar } from "./components/BottomBar";
 import { EmptyState } from "./components/EmptyState";
 import { ModuleList } from "./components/ModuleList";
@@ -27,6 +27,8 @@ export default function App() {
   const [selected, setSelected] = useState<{ kind: "module" | "group"; id: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [pickActive, setPickActive] = useState(false);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [updating, setUpdating] = useState(false);
   const [undo, setUndo] = useState<{ module: Module; containerId: string; index: number; name: string } | null>(null);
 
   const profile = profiles.profile;
@@ -167,6 +169,24 @@ export default function App() {
     setSelected(null);
   }, [profiles.selectedId]);
 
+  // Check for a newer release once, on startup; the banner appears only when
+  // one is found.
+  useEffect(() => {
+    void api
+      .checkUpdate()
+      .then((u) => {
+        if (u.available) setUpdate(u);
+      })
+      .catch(() => {});
+  }, [api]);
+
+  const installUpdate = () => {
+    setUpdating(true);
+    // On success the app restarts and this promise never resolves in this
+    // process; only an error resets the button.
+    void api.installUpdate().catch(() => setUpdating(false));
+  };
+
   return (
     <div className="flex h-screen w-screen flex-col">
       <div className="flex min-h-0 flex-1">
@@ -195,7 +215,22 @@ export default function App() {
               </span>
             </h1>
             {profiles.error && <span className="text-[12px] text-rose-400">{profiles.error}</span>}
-            <span className="text-[11px] text-neutral-500">{profiles.saved ? "Saved" : "Saving…"}</span>
+            <div className="flex items-center gap-3">
+              {update && (
+                <div className="flex items-center gap-2 rounded border border-indigo-500/50 bg-indigo-500/10 px-2 py-0.5 text-[12px] text-indigo-200">
+                  <span>⬆ v{update.version} available</span>
+                  <button
+                    type="button"
+                    onClick={installUpdate}
+                    disabled={updating}
+                    className="rounded bg-indigo-500 px-2 py-0.5 font-medium text-neutral-950 enabled:hover:bg-indigo-400 disabled:opacity-60"
+                  >
+                    {updating ? "Updating…" : "Update"}
+                  </button>
+                </div>
+              )}
+              <span className="text-[11px] text-neutral-500">{profiles.saved ? "Saved" : "Saving…"}</span>
+            </div>
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-3">

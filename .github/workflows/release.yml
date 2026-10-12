@@ -157,26 +157,25 @@ jobs:
         run: |
           set -euo pipefail
 
-          cat > README.txt <<'EOF'
-          Auto Clicker
-
-          Run the binary to start the app. No installation is required.
-          EOF
-
+          # Each archive holds exactly ONE top-level entry (the binary): the
+          # in-app updater refuses archives with multiple top-level files when
+          # it unpacks the downloaded asset. Run instructions live in the
+          # release notes.
           mkdir -p linux
           cp dist/linux/auto-clicker linux/
           chmod +x linux/auto-clicker
-          cp README.txt linux/
-          tar -C linux -czf "auto-clicker_${VERSION}_linux_amd64.tar.gz" auto-clicker README.txt
+          tar -C linux -czf "auto-clicker_${VERSION}_linux_amd64.tar.gz" auto-clicker
 
           mkdir -p windows
           cp dist/windows/auto-clicker.exe windows/
-          cp README.txt windows/
           # -j junks the paths so the archive lands in the working directory,
           # next to the Linux tarball (action-gh-release uploads from here).
-          zip -q -j "auto-clicker_${VERSION}_windows_amd64.zip" windows/auto-clicker.exe windows/README.txt
+          zip -q -j "auto-clicker_${VERSION}_windows_amd64.zip" windows/auto-clicker.exe
 
-          ls -l auto-clicker_*.tar.gz auto-clicker_*.zip
+          # sha256sum-style sidecar the updater verifies downloads against.
+          sha256sum "auto-clicker_${VERSION}_linux_amd64.tar.gz" "auto-clicker_${VERSION}_windows_amd64.zip" > checksums.txt
+
+          ls -l auto-clicker_*.tar.gz auto-clicker_*.zip checksums.txt
 
       # Publishes directly (not a draft) so the binaries are downloadable from
       # the Releases page as soon as the build finishes.
@@ -190,3 +189,4 @@ jobs:
           files: |
             auto-clicker_${{ needs.version.outputs.version }}_linux_amd64.tar.gz
             auto-clicker_${{ needs.version.outputs.version }}_windows_amd64.zip
+            checksums.txt
