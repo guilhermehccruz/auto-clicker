@@ -33,11 +33,13 @@ export function ModuleList({
   locked,
   desktop,
   expandedId,
+  selectedGroupId,
   onUpdate,
   onDelete,
   onDuplicate,
   onMove,
   onExpand,
+  onSelectGroup,
   onPick,
   onAddGroup,
   onRenameGroup,
@@ -53,11 +55,13 @@ export function ModuleList({
   locked: boolean;
   desktop: { width: number; height: number };
   expandedId: string | null;
+  selectedGroupId: string | null;
   onUpdate: (id: string, patch: Partial<Module>) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onMove: (id: string, toContainer: string, toIndex: number) => void;
   onExpand: (id: string) => void;
+  onSelectGroup: (id: string) => void;
   onPick: (id: string) => void;
   onAddGroup: () => void;
   onRenameGroup: (id: string, name: string) => void;
@@ -169,6 +173,8 @@ export function ModuleList({
             showHeader={c.group !== undefined || showUngroupedHeader}
             collapsed={collapsed.has(c.key)}
             onToggleCollapse={() => toggleCollapse(c.key)}
+            selected={selectedGroupId === c.key}
+            onSelectGroup={() => onSelectGroup(c.key)}
             orders={orders}
             issues={issues}
             locked={locked}
@@ -207,6 +213,8 @@ function Section({
   showHeader,
   collapsed,
   onToggleCollapse,
+  selected,
+  onSelectGroup,
   orders,
   issues,
   locked,
@@ -230,6 +238,8 @@ function Section({
   showHeader: boolean;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  selected: boolean;
+  onSelectGroup: () => void;
   orders: Map<string, number>;
   issues: Issue[];
   locked: boolean;
@@ -258,6 +268,7 @@ function Section({
     const el = e.target as HTMLElement;
     if (el.closest("button, input, select, textarea, [role='menu']")) return;
     onToggleCollapse();
+    onSelectGroup();
   };
 
   // Rename lives on the group name text only: double-click it to edit. A single
@@ -287,16 +298,23 @@ function Section({
         setDragOver(false);
       }}
       onDrop={onSectionDrop}
-      className={`flex flex-col gap-2 rounded-lg ${dragOver ? "ring-1 ring-indigo-500/60" : ""}`}
+      className={`flex flex-col gap-2 rounded-lg ${
+        dragOver ? "ring-1 ring-indigo-500/60" : selected ? "ring-1 ring-indigo-500/40" : ""
+      }`}
     >
       {showHeader && (
         <header
           onClick={onHeaderClick}
-          className="flex cursor-pointer items-center gap-2 rounded border border-neutral-700 bg-neutral-900 px-3 py-1.5"
+          className={`flex cursor-pointer items-center gap-2 rounded border px-3 py-1.5 ${
+            selected ? "border-indigo-500/60 bg-neutral-900" : "border-neutral-700 bg-neutral-900"
+          }`}
         >
           <button
             type="button"
-            onClick={onToggleCollapse}
+            onClick={() => {
+              onToggleCollapse();
+              onSelectGroup();
+            }}
             aria-label={collapsed ? "Expand group" : "Collapse group"}
             aria-expanded={!collapsed}
             className="px-1 text-neutral-400 hover:text-neutral-200"
@@ -399,14 +417,7 @@ function Section({
                 <MenuItem
                   disabled={locked}
                   danger
-                  onClick={() => {
-                    const n = g.modules.length;
-                    const msg =
-                      n > 0
-                        ? `Delete group "${g.name}" and its ${n} click${n === 1 ? "" : "s"}? This cannot be undone.`
-                        : `Delete group "${g.name}"?`;
-                    if (confirm(msg)) onRemoveGroup(g.id);
-                  }}
+                  onClick={() => onRemoveGroup(g.id)}
                 >
                   Delete group
                 </MenuItem>

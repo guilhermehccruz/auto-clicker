@@ -22,6 +22,9 @@ export default function App() {
   const { settings, capabilities, diagnostics, save: saveSettings } = useSettings(api);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // selected is the last item the user acted on (expanded click or clicked
+  // group header); Delete acts on it (DESIGN §5.8).
+  const [selected, setSelected] = useState<{ kind: "module" | "group"; id: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [pickActive, setPickActive] = useState(false);
   const [undo, setUndo] = useState<{ module: Module; containerId: string; index: number; name: string } | null>(null);
@@ -68,8 +71,9 @@ export default function App() {
         else if (runner.running) void runner.pause();
       } else if (e.key === "Escape") {
         setShowSettings(false);
-      } else if (!typing && e.key === "Delete" && expandedId && !locked) {
-        deleteModule(expandedId);
+      } else if (!typing && e.key === "Delete" && !locked && selected) {
+        if (selected.kind === "module") deleteModule(selected.id);
+        else deleteGroup(selected.id);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -93,9 +97,28 @@ export default function App() {
       }
     }
     if (!mod) return;
+    if (!confirm(`Delete click "${label(mod)}"?`)) return;
     profiles.removeModule(id);
     setUndo({ module: mod, containerId, index, name: label(mod) });
     if (expandedId === id) setExpandedId(null);
+    if (selected?.kind === "module" && selected.id === id) setSelected(null);
+  };
+
+  // deleteGroup deletes a group and the clicks inside it, after a confirmation.
+  const deleteGroup = (id: string) => {
+    if (!profile) return;
+    const g = profile.groups.find((x) => x.id === id);
+    if (!g) return;
+    const n = g.modules.length;
+    const msg =
+      n > 0
+        ? `Delete group "${g.name}" and its ${n} click${n === 1 ? "" : "s"}? This cannot be undone.`
+        : `Delete group "${g.name}"?`;
+    if (!confirm(msg)) return;
+    profiles.removeGroup(id);
+    if (selected?.kind === "group" && selected.id === id) setSelected(null);
+    // The expanded click may have lived in the deleted group.
+    setExpandedId((cur) => (cur && g.modules.some((m) => m.id === cur) ? null : cur));
   };
 
   // onPick opens the shell's picker (a small always-on-top toast that reads the
@@ -129,6 +152,7 @@ export default function App() {
   const addModule = (containerId: string = UNGROUPED) => {
     const id = profiles.addModule(containerId);
     setExpandedId(id);
+    setSelected({ kind: "module", id });
   };
 
   const onPick = (id: string) => {
@@ -136,6 +160,12 @@ export default function App() {
     setPickActive(true);
     void api.startPick();
   };
+
+  // Switching profiles drops the current selection/expansion.
+  useEffect(() => {
+    setExpandedId(null);
+    setSelected(null);
+  }, [profiles.selectedId]);
 
   return (
     <div className="flex h-screen w-screen flex-col">
@@ -186,11 +216,16 @@ export default function App() {
                   locked={locked}
                   desktop={desktop}
                   expandedId={expandedId}
+                  selectedGroupId={selected?.kind === "group" ? selected.id : null}
                   onUpdate={profiles.updateModule}
                   onDelete={deleteModule}
                   onDuplicate={profiles.duplicateModule}
                   onMove={profiles.moveModule}
-                  onExpand={(id) => setExpandedId((cur) => (cur === id ? null : id))}
+                  onExpand={(id) => {
+                    setExpandedId((cur) => (cur === id ? null : id));
+                    setSelected({ kind: "module", id });
+                  }}
+                  onSelectGroup={(id) => setSelected({ kind: "group", id })}
                   onPick={onPick}
                   onAddGroup={() => {
                     const name = prompt("Group name", "New group");
@@ -199,7 +234,7 @@ export default function App() {
                   onRenameGroup={profiles.renameGroup}
                   onUpdateGroup={profiles.updateGroup}
                   onSetGroupEnabled={profiles.setGroupEnabled}
-                  onRemoveGroup={profiles.removeGroup}
+                  onRemoveGroup={deleteGroup}
                   onMoveGroup={profiles.moveGroup}
                   onAddModule={addModule}
                 />

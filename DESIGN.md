@@ -878,9 +878,9 @@ button  [ left ▼ ]   count [ 3 ]   delay [ 90 ] ms   hold [ 10 ] ms
   **Edited by double-clicking the card title** — the title text is a rename-only zone sized
   to its content (clicking it does not toggle), while the card's free space toggles; no
   delay, and no label field in the expanded row.
-- **Delete** shows an undo toast (5 s) rather than a confirm dialog — modules are cheap
-  to recreate and easy to delete by accident. **Profile delete** does require a confirm
-  dialog, because it destroys a file on disk.
+- **Delete requires a confirm dialog** (click or group), because a group also destroys the
+  clicks inside it. Deleting a click still shows the undo toast (5 s) after the confirm.
+  **Profile delete** requires a confirm too, since it destroys a file on disk.
 - **Autosave**, debounced ~500 ms, with a subtle "Saved" indicator; also flushed on card
   blur and on app close. There is no explicit Save button.
 
@@ -988,7 +988,7 @@ Also in v1:
 | `F9` | Pause / Resume (also global) |
 | `Esc` | close the picker, popovers, dialogs |
 | `Space` | toggle the focused module's enable switch; lift/drop during DnD |
-| `Delete` | delete the focused module (with undo toast) |
+| `Delete` | delete the selected click or group (with a confirmation; clicks also get an undo toast) |
 | `↑` / `↓` with `Alt` | move the focused module up/down |
 
 **Shortcut scoping.** F8/F9 always act, from anywhere. The *editing*
