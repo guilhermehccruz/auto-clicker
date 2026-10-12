@@ -165,7 +165,7 @@ export interface Settings {
 export const MODULE_DEFAULTS = {
   count: 1,
   holdMs: 10,
-  delayAfter: 250,
+  delayAfter: 50,
 } as const;
 
 export const RANGES = {

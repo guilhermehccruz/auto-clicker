@@ -12,7 +12,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Group, Issue, Module } from "../api/types";
-import { executionOrders } from "../lib/format";
+import { executionOrders, numberInput } from "../lib/format";
 import { UNGROUPED } from "../state/useProfiles";
 import { Dropdown, MenuItem } from "./Dropdown";
 import { ModuleCard } from "./ModuleCard";
@@ -356,7 +356,7 @@ function Section({
                   value={g.repeat}
                   disabled={locked}
                   onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => onUpdateGroup(g.id, { repeat: Number(e.target.value) })}
+                  onChange={(e) => onUpdateGroup(g.id, { repeat: numberInput(e) })}
                   className="mono w-12 rounded border border-neutral-700 bg-neutral-800 px-1 py-0.5 text-center text-neutral-100 disabled:opacity-50"
                 />
               </label>
@@ -371,7 +371,7 @@ function Section({
                   value={g.delayAfter}
                   disabled={locked}
                   onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => onUpdateGroup(g.id, { delayAfter: Number(e.target.value) })}
+                  onChange={(e) => onUpdateGroup(g.id, { delayAfter: numberInput(e) })}
                   className="mono w-20 rounded border border-neutral-700 bg-neutral-800 px-1.5 py-0.5 text-neutral-100 disabled:opacity-50"
                 />
                 ms

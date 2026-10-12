@@ -1,4 +1,5 @@
 import type { Capabilities, Diagnostics, Failsafe, Profile, Settings } from "../api/types";
+import { numberInput } from "../lib/format";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
 
 // SettingsDialog: hotkeys (read-only in v1), safety for the open profile,
@@ -59,7 +60,7 @@ export function SettingsDialog({
                   type="number"
                   min={0}
                   value={Math.round(failsafe.maxRuntimeSec / 60)}
-                  onChange={(e) => onChangeFailsafe({ ...failsafe, maxRuntimeSec: Number(e.target.value) * 60 })}
+                  onChange={(e) => onChangeFailsafe({ ...failsafe, maxRuntimeSec: numberInput(e) * 60 })}
                   className="mono w-20 rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5"
                 />
               </label>
@@ -97,7 +98,7 @@ export function SettingsDialog({
               type="number"
               min={0}
               value={Math.round(settings.defaultMaxRuntimeSec / 60)}
-              onChange={(e) => onSave({ ...settings, defaultMaxRuntimeSec: Number(e.target.value) * 60 })}
+              onChange={(e) => onSave({ ...settings, defaultMaxRuntimeSec: numberInput(e) * 60 })}
               className="mono w-20 rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5"
             />
           </label>

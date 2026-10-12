@@ -327,16 +327,17 @@ last group's `delayAfter` is skipped because the loop delay already covers the g
 | `id` | string | `m_` + 8 hex | — | stable id for DnD/React keys; unique within the profile |
 | `name` | string | `""` | ≤ 80 chars | optional user label; when empty the UI shows the generated summary (`(940, 520) ×3`) |
 | `enabled` | bool | `true` | — | participates in the run; keeps its list slot when off |
-| `target` | object | `{"kind":"cursor"}` | — | `absolute {x,y}` or `cursor` ([§3.4](#34-targets)) |
+| `target` | object | `{"kind":"absolute"}` | — | `absolute {x,y}` or `cursor` ([§3.4](#34-targets)); a new module has no coordinates yet, so validation asks for them |
 | `button` | enum | `left` | `left`/`right`/`middle`/`none` | mouse button; `none` = **move only** (absolute target: moves without clicking; `holdMs` is ignored) |
 | `count` | int | `1` | 1–1000 | clicks per pass (burst size, *not* a rate) |
 | `holdMs` | int (ms) | `10` | 0–1000 | how long the button stays down per click |
-| `delayAfter` | int (ms) | `250` | 0–3600000 | pause after **every** click (period = `holdMs + delayAfter`; also the gap to the next module) |
+| `delayAfter` | int (ms) | `50` | 0–3600000 | pause after **every** click (period = `holdMs + delayAfter`; also the gap to the next module) |
 | `clickInterval` | int (ms) | `0` | 0–60000 | **deprecated**; folded into `delayAfter` on load, no longer edited or run |
 
 Design notes:
-- **Safe defaults.** A freshly added module is `cursor`-targeted with `delayAfter: 250`,
-  so an unconfigured run can never hammer a corner or spin at an unsafe rate. `count`
+- **Safe defaults.** A freshly added module is `absolute`-targeted **with no coordinates**,
+  so validation blocks the run until the user picks a point (nothing is clicked at 0,0 by
+  accident), and `delayAfter: 50` keeps a configured run at a sane rate. `count`
   caps at 1000 because continuous clicking is what `loop: forever` is for; the card shows
   a hint to that effect when the user types a large value.
 - `holdMs` defaults to 10 ms rather than 0 because some targets ignore presses shorter
@@ -950,7 +951,7 @@ A **"pick position"** mode. On success it writes `x`/`y` into the module.
 
 **As implemented (v1): in-app countdown, cursor captured by the engine side.** There is **no
 second window**. The UI calls `StartPick()`, which starts a **Go-side timer**
-(`PickCountdown`, 5 s) and returns. A banner inside the main window shows the countdown
+(`PickCountdown`, 3 s) and returns. A banner inside the main window shows the countdown
 (with tenths) and a Capture/Cancel button. The user moves the pointer over the target; when
 the timer fires, the service reads the **real** cursor (`CursorPos()`, the x11 query path,
 [§2.2](#22-backend-selection)) and delivers it via the `pick:done` event (`{x, y, ok}`).
@@ -1335,7 +1336,7 @@ see [§3.9](#39-schema-evolution).
 | UI | `vitest` for card summary formatting, validation rendering, empty/blocked states; manual pass for DnD and the picker overlay |
 
 The engine tests are the ones that matter: with a fake clock and a fake driver, "clicked
-`(940,520)` three times 90 ms apart, then 250 ms of nothing, then stopped within one
+`(940,520)` three times 90 ms apart, then 50 ms of nothing, then stopped within one
 click of the signal" is a completely deterministic assertion.
 
 ### Manual release test matrix

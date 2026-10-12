@@ -267,7 +267,7 @@ func (s *Service) Displays() ([]input.Display, error) { return s.drv.Displays() 
 // PickCountdown is the delay before the cursor is captured. The countdown runs
 // in the app UI; the capture itself is driven by this Go timer, which is
 // authoritative (the app may be unfocused/behind a fullscreen game).
-const PickCountdown = 5 * time.Second
+const PickCountdown = 3 * time.Second
 
 // StartPick begins a countdown and returns immediately. After PickCountdown the
 // real cursor position is captured and delivered via the PickDone callback

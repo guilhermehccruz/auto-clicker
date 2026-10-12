@@ -451,7 +451,7 @@ func (t Target) MarshalJSON() ([]byte, error) {
 	m := map[string]json.RawMessage{}
 	kind, _ := json.Marshal(t.Kind)
 	m["kind"] = kind
-	if t.Kind == TargetAbsolute {
+	if t.Kind == TargetAbsolute && t.coordsSet {
 		x, _ := json.Marshal(t.X)
 		y, _ := json.Marshal(t.Y)
 		m["x"], m["y"] = x, y

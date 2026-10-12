@@ -1,4 +1,5 @@
 import type { Loop, LoopMode, Progress, RunState } from "../api/types";
+import { numberInput } from "../lib/format";
 import { RunControls } from "./RunControls";
 import { Select } from "./Select";
 import { Telemetry } from "./Telemetry";
@@ -51,7 +52,7 @@ export function BottomBar({
               min={1}
               value={loop.count}
               disabled={locked}
-              onChange={(e) => onLoopChange({ ...loop, count: Number(e.target.value) })}
+              onChange={(e) => onLoopChange({ ...loop, count: numberInput(e) })}
               className="mono w-16 rounded border border-neutral-700 bg-neutral-800 px-2 py-1 text-neutral-100 disabled:opacity-50"
             />
           </label>
@@ -65,7 +66,7 @@ export function BottomBar({
               value={loop.loopDelay.min}
               disabled={locked}
               onChange={(e) =>
-                onLoopChange({ ...loop, loopDelay: { ...loop.loopDelay, min: Number(e.target.value) } })
+                onLoopChange({ ...loop, loopDelay: { ...loop.loopDelay, min: numberInput(e) } })
               }
               className="mono w-20 rounded border border-neutral-700 bg-neutral-800 px-1.5 py-1 text-neutral-100 disabled:opacity-50"
             />
@@ -76,7 +77,7 @@ export function BottomBar({
               value={loop.loopDelay.max}
               disabled={locked}
               onChange={(e) =>
-                onLoopChange({ ...loop, loopDelay: { ...loop.loopDelay, max: Number(e.target.value) } })
+                onLoopChange({ ...loop, loopDelay: { ...loop.loopDelay, max: numberInput(e) } })
               }
               className="mono w-20 rounded border border-neutral-700 bg-neutral-800 px-1.5 py-1 text-neutral-100 disabled:opacity-50"
             />

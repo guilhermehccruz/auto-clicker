@@ -2,7 +2,12 @@ import type { Group, Module } from "../api/types";
 
 // summary mirrors Go model.Module.Summary so the card and the engine agree.
 export function summary(m: Module): string {
-  const target = m.target.kind === "absolute" ? `(${m.target.x}, ${m.target.y})` : "at cursor";
+  const target =
+    m.target.kind === "absolute"
+      ? m.target.x !== undefined && m.target.y !== undefined
+        ? `(${m.target.x}, ${m.target.y})`
+        : "(no coords)"
+      : "at cursor";
   if (m.button === "none") {
     return m.count > 1 ? `${target} move ×${m.count}` : `${target} move only`;
   }
@@ -18,9 +23,20 @@ export function label(m: Module): string {
 
 export function targetChip(m: Module, desktopW: number, desktopH: number): string {
   if (m.target.kind === "cursor") return "⌖ at cursor";
-  const { x = 0, y = 0 } = m.target;
+  const { x, y } = m.target;
+  if (x === undefined || y === undefined) return "⚠ no coords";
   const off = x < 0 || y < 0 || (desktopW > 0 && x >= desktopW) || (desktopH > 0 && y >= desktopH);
   return off ? `⚠ (${x}, ${y})` : `(${x}, ${y})`;
+}
+
+// numberInput normalizes a numeric <input> as the user types: it strips leading
+// zeros (so typing into a field showing "0" yields "100", not "0100") and
+// returns the parsed value.
+export function numberInput(e: { currentTarget: HTMLInputElement }): number {
+  const el = e.currentTarget;
+  const raw = el.value.replace(/^0+(?=\d)/, "");
+  if (el.value !== raw) el.value = raw;
+  return raw === "" ? 0 : Number(raw);
 }
 
 export function formatElapsed(ms: number): string {

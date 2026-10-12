@@ -2,7 +2,7 @@ import { useState, type MouseEvent } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { ButtonName, Issue, Module, Target } from "../api/types";
-import { summary, targetChip } from "../lib/format";
+import { summary, targetChip, numberInput } from "../lib/format";
 import { Dropdown, MenuItem } from "./Dropdown";
 import { Select } from "./Select";
 import { TargetEditor } from "./TargetEditor";
@@ -205,7 +205,7 @@ function NumberField({
         min={min}
         max={max}
         disabled={disabled}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => onChange(numberInput(e))}
         className="mono w-20 rounded border border-neutral-700 bg-neutral-900 px-1.5 py-0.5 text-neutral-100 disabled:opacity-50"
       />
       {unit}

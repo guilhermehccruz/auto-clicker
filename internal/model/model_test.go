@@ -88,12 +88,30 @@ func TestAbsoluteZeroCoordsRoundTrip(t *testing.T) {
 
 func TestCursorTargetOmitsCoords(t *testing.T) {
 	m := NewModule()
+	m.Target = Target{Kind: TargetCursor}
 	b, err := json.Marshal(&m)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(b), `"x"`) || strings.Contains(string(b), `"y"`) {
 		t.Errorf("cursor target should not carry coordinates: %s", b)
+	}
+}
+
+func TestNewModuleDefaultsToAbsoluteWithoutCoords(t *testing.T) {
+	m := NewModule()
+	if m.Target.Kind != TargetAbsolute || m.Target.HasCoords() {
+		t.Fatalf("new module target = %+v, want absolute without coords", m.Target)
+	}
+	if m.DelayAfter != DefaultDelayAfter {
+		t.Errorf("delayAfter = %d, want %d", m.DelayAfter, DefaultDelayAfter)
+	}
+	b, err := json.Marshal(&m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), `"x"`) || strings.Contains(string(b), `"y"`) {
+		t.Errorf("absolute target without coords should omit x/y: %s", b)
 	}
 }
 
@@ -241,7 +259,9 @@ func TestGroupRepeatAndDelayValidation(t *testing.T) {
 	g := NewGroup("A")
 	g.Repeat = 0
 	g.DelayAfter = -1
-	g.Modules = []Module{NewModule()}
+	mod := NewModule()
+	mod.Target = NewAbsoluteTarget(10, 10)
+	g.Modules = []Module{mod}
 	p.Groups = []Group{g}
 
 	issues := Validate(p, Desktop{})

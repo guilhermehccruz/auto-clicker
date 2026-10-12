@@ -17,7 +17,7 @@ const (
 // Defaults (see DESIGN §3.3).
 const (
 	DefaultHoldMs        = 10
-	DefaultDelayAfter    = 250
+	DefaultDelayAfter    = 50
 	DefaultGroupRepeat   = 1
 	DefaultMaxRuntimeSec = 3600
 	DefaultLoopDelayMin  = 250
@@ -56,14 +56,15 @@ func NewGroup(name string) Group {
 	return Group{ID: "g_" + newHex(), Name: name, Enabled: true, Repeat: DefaultGroupRepeat, Modules: []Module{}}
 }
 
-// NewModule returns a freshly added module: cursor-targeted, left button, one
-// click, 250 ms after — safe to run without configuration.
+// NewModule returns a freshly added module: absolute-targeted (with no
+// coordinates yet, so validation asks for them), left button, one click, 50 ms
+// after — safe to run without configuration.
 func NewModule() Module {
 	return Module{
 		Kind:       KindClick,
 		ID:         NewID(),
 		Enabled:    true,
-		Target:     Target{Kind: TargetCursor},
+		Target:     Target{Kind: TargetAbsolute},
 		Button:     ButtonLeft,
 		Count:      1,
 		HoldMs:     DefaultHoldMs,

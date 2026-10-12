@@ -352,11 +352,11 @@ export function newModule(): Module {
     id: `m_${rand()}`,
     name: "",
     enabled: true,
-    target: { kind: "cursor" },
+    target: { kind: "absolute" },
     button: "left",
     count: 1,
     holdMs: 10,
-    delayAfter: 250,
+    delayAfter: 50,
   };
 }
 

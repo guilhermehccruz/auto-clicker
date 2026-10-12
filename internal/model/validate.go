@@ -171,9 +171,12 @@ func (m Module) Label() string {
 // Summary is the generated, always-current one-line description of a module.
 func (m Module) Summary() string {
 	var b strings.Builder
-	if m.Target.Kind == TargetAbsolute {
+	switch {
+	case m.Target.Kind == TargetAbsolute && m.Target.HasCoords():
 		fmt.Fprintf(&b, "(%d, %d)", m.Target.X, m.Target.Y)
-	} else {
+	case m.Target.Kind == TargetAbsolute:
+		b.WriteString("(no coords)")
+	default:
 		b.WriteString("at cursor")
 	}
 	if m.Button == ButtonNone {

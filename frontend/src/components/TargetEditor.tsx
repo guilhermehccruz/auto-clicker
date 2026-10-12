@@ -1,4 +1,5 @@
 import type { Target } from "../api/types";
+import { numberInput } from "../lib/format";
 
 // TargetEditor edits a module's target kind and coordinates (DESIGN §5.3).
 export function TargetEditor({
@@ -40,17 +41,17 @@ export function TargetEditor({
             x
             <input
               type="number"
-              value={target.x ?? 0}
+              value={target.x ?? ""}
               disabled={disabled}
-              onChange={(e) => onChange({ kind: "absolute", x: Number(e.target.value), y: target.y ?? 0 })}
+              onChange={(e) => onChange({ kind: "absolute", x: numberInput(e), y: target.y ?? 0 })}
               className="w-20 rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-neutral-100 disabled:opacity-50"
             />
             y
             <input
               type="number"
-              value={target.y ?? 0}
+              value={target.y ?? ""}
               disabled={disabled}
-              onChange={(e) => onChange({ kind: "absolute", x: target.x ?? 0, y: Number(e.target.value) })}
+              onChange={(e) => onChange({ kind: "absolute", x: target.x ?? 0, y: numberInput(e) })}
               className="w-20 rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-neutral-100 disabled:opacity-50"
             />
           </span>

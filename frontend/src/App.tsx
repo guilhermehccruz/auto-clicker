@@ -225,7 +225,7 @@ export default function App() {
       />
 
       {pickActive && (
-        <PickBanner seconds={5} onCancel={() => void api.cancelPick()} />
+        <PickBanner seconds={3} onCancel={() => void api.cancelPick()} />
       )}
 
       {showSettings && settings && (

@@ -126,7 +126,8 @@ func TestFlattenOrderSkipsDisabled(t *testing.T) {
 	m2 := model.NewModule()
 	m2.Enabled = false
 	m2.Target = model.NewAbsoluteTarget(1, 1)
-	m3 := model.NewModule() // cursor
+	m3 := model.NewModule()
+	m3.Target = model.Target{Kind: model.TargetCursor}
 
 	drv := input.NewFake()
 	e := New(drv, WithClock(newAutoClock()))
