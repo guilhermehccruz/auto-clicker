@@ -1020,6 +1020,11 @@ nothing opens unless a newer version exists, in which case the header shows a
   partially-replaced asset, but the digest comes from the same release, so it is **not** an
   authenticity guarantee. A pinned signing key (`updater.Config.PublicKey`) is the planned
   hardening step.
+- **Linux filesystem caveat.** The Unix swap helper replaces the binary with `os.Rename`,
+  which fails with `EXDEV` across filesystems — and `$TMPDIR` (`/tmp`, often tmpfs) is
+  usually a different mount than `$HOME`. For the duration of an update the app therefore
+  points `TMPDIR` at the binary's own directory, so staging and target share a device. The
+  Windows helper already falls back to a copy when the staging file is on another drive.
 - **Channel.** Every push to `main` publishes a normal (non-prerelease) release, so the
   app updates to the newest build. Tagging `v*` still publishes a semantic version.
 

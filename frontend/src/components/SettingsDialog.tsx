@@ -35,7 +35,12 @@ export function SettingsDialog({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-neutral-100">Settings</h2>
+          <h2 className="text-neutral-100">
+            Settings{" "}
+            <span className="text-[11px] font-normal text-neutral-500">
+              {diagnostics?.version ?? "…"}
+            </span>
+          </h2>
           <button type="button" onClick={onClose} className="rounded px-2 py-1 text-neutral-400 hover:bg-neutral-800">Esc</button>
         </div>
 

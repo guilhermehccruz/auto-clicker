@@ -109,6 +109,10 @@ func main() {
 			if !updaterReady {
 				return errors.New("update: not available")
 			}
+			// Keep the updater's staging file on the binary's filesystem so the
+			// Unix rename-based swap cannot fail with EXDEV (see samefs_linux.go).
+			restore := sameFSTempDir()
+			defer restore()
 			if err := app.Updater.DownloadAndInstall(context.Background()); err != nil {
 				return err
 			}
