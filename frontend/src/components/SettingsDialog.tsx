@@ -21,6 +21,7 @@ export function SettingsDialog({
   updating,
   onSave,
   onChangeFailsafe,
+  onChangeHumanize,
   onOpenFolder,
   onOpenLog,
   onCheckUpdate,
@@ -37,6 +38,7 @@ export function SettingsDialog({
   updating: boolean;
   onSave: (s: Settings) => void;
   onChangeFailsafe: (f: Failsafe) => void;
+  onChangeHumanize: (v: boolean) => void;
   onOpenFolder: () => void;
   onOpenLog: () => void;
   onCheckUpdate: () => Promise<UpdateInfo>;
@@ -177,6 +179,22 @@ export function SettingsDialog({
                 Stop when the pointer is dragged into a screen corner
               </label>
             </div>
+          ) : (
+            <p className="text-[12px] text-neutral-500">No profile open.</p>
+          )}
+        </section>
+
+        <section className="mb-4">
+          <h3 className="mb-1 text-[12px] uppercase tracking-wide text-neutral-500">Timing (this profile)</h3>
+          {profile ? (
+            <label className="flex items-center gap-2 text-[12px] text-neutral-300">
+              <input
+                type="checkbox"
+                checked={profile.humanize}
+                onChange={(e) => onChangeHumanize(e.target.checked)}
+              />
+              Humanize delays (randomize every fixed delay by ±25%)
+            </label>
           ) : (
             <p className="text-[12px] text-neutral-500">No profile open.</p>
           )}

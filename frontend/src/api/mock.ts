@@ -40,6 +40,7 @@ export class MockApi implements Api {
       display: { width: 5360, height: 1440 },
       loop: { mode: "forever", count: 10, loopDelay: { min: 500, max: 1500 } },
       failsafe: { maxRuntimeSec: 3600, mouseToCornerStops: false },
+      humanize: false,
       groups: [],
       modules: [
         { kind: "click", id: "m1", name: "", enabled: true, target: { kind: "absolute", x: 940, y: 520 }, button: "left", count: 3, holdMs: 10, delayAfter: 90 },
@@ -82,6 +83,7 @@ export class MockApi implements Api {
       display: { width: 1920, height: 1080 },
       loop: { mode: "once", count: 1, loopDelay: { min: 250, max: 250 } },
       failsafe: { maxRuntimeSec: this.settings.defaultMaxRuntimeSec, mouseToCornerStops: false },
+      humanize: false,
       groups: [],
       modules: [],
     });

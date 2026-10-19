@@ -319,6 +319,7 @@ export default function App() {
           updating={updating}
           onSave={(s) => void saveSettings(s)}
           onChangeFailsafe={(f: Failsafe) => profiles.update((p) => ({ ...p, failsafe: f }))}
+          onChangeHumanize={(v: boolean) => profiles.update((p) => ({ ...p, humanize: v }))}
           onOpenFolder={() => void api.openProfilesDir()}
           onOpenLog={() => void api.openLogDir()}
           onCheckUpdate={() => api.checkUpdate()}

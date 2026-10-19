@@ -124,6 +124,7 @@ type Engine struct {
 	clicks      int64
 	active      time.Duration
 	maxRuntime  time.Duration
+	humanize    bool
 	stopReason  string
 	errText     string
 	lastEmit    time.Time
@@ -183,6 +184,7 @@ func (e *Engine) Run(p *model.Profile) error {
 	e.clicks = 0
 	e.active = 0
 	e.maxRuntime = time.Duration(snap.Failsafe.MaxRuntimeSec) * time.Second
+	e.humanize = snap.Humanize
 	e.stopReason = ""
 	e.errText = ""
 	e.moduleID, e.moduleLabel = "", ""
@@ -299,7 +301,7 @@ func (e *Engine) loop(ctx context.Context, p *model.Profile, plan []execBlock) {
 			// Delay between groups: skip after the last block, which the loop
 			// delay already covers.
 			if b.group != nil && bi < len(plan)-1 && b.group.DelayAfter > 0 {
-				if err := e.delay(ctx, time.Duration(b.group.DelayAfter)*time.Millisecond); err != nil {
+				if err := e.delay(ctx, e.humanizeDelay(time.Duration(b.group.DelayAfter)*time.Millisecond)); err != nil {
 					return
 				}
 			}
@@ -313,7 +315,15 @@ func (e *Engine) loop(ctx context.Context, p *model.Profile, plan []execBlock) {
 			e.setStop(ReasonDone, "")
 			return
 		}
-		if err := e.delay(ctx, e.draw(p.Loop.LoopDelay)); err != nil {
+		// A fixed loop delay is humanized; a {min,max} range is already random.
+		ld := p.Loop.LoopDelay
+		var loopGap time.Duration
+		if ld.Max <= ld.Min {
+			loopGap = e.humanizeDelay(time.Duration(ld.Min) * time.Millisecond)
+		} else {
+			loopGap = e.draw(ld)
+		}
+		if err := e.delay(ctx, loopGap); err != nil {
 			return
 		}
 	}
@@ -338,7 +348,6 @@ func (e *Engine) runModule(ctx context.Context, m model.Module) error {
 			return err
 		}
 	}
-	gap := time.Duration(m.DelayAfter) * time.Millisecond
 
 	for k := 0; k < m.Count; k++ {
 		if e.maxRuntimeHit() {
@@ -382,8 +391,8 @@ func (e *Engine) runModule(ctx context.Context, m model.Module) error {
 		e.mu.Unlock()
 		e.emit(false)
 
-		if gap > 0 {
-			if err := e.delay(ctx, gap); err != nil {
+		if m.DelayAfter > 0 {
+			if err := e.delay(ctx, e.humanizeDelay(time.Duration(m.DelayAfter)*time.Millisecond)); err != nil {
 				return err
 			}
 		}
@@ -420,6 +429,24 @@ func (e *Engine) draw(dr model.DelayRange) time.Duration {
 	}
 	n := e.rng.IntN(dr.Max-dr.Min+1) + dr.Min
 	return time.Duration(n) * time.Millisecond
+}
+
+// humanizeJitter is the fraction a fixed delay is scaled by when humanizing is
+// on: a delay d becomes a uniform draw in [d·(1-j), d·(1+j)].
+const humanizeJitter = 0.25
+
+// humanizeDelay scales a fixed delay by ±humanizeJitter when the profile asks
+// for it; zero or disabled delays pass through unchanged.
+func (e *Engine) humanizeDelay(d time.Duration) time.Duration {
+	if !e.humanize || d <= 0 {
+		return d
+	}
+	lo := int64(float64(d) * (1 - humanizeJitter))
+	hi := int64(float64(d) * (1 + humanizeJitter))
+	if hi <= lo {
+		return d
+	}
+	return time.Duration(lo + int64(e.rng.IntN(int(hi-lo+1))))
 }
 
 func (e *Engine) maxRuntimeHit() bool {

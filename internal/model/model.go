@@ -55,8 +55,11 @@ type Profile struct {
 	Display       Display  `json:"display"`
 	Loop          Loop     `json:"loop"`
 	Failsafe      Failsafe `json:"failsafe"`
-	Modules       []Module `json:"modules"`
-	Groups        []Group  `json:"groups"`
+	// Humanize randomizes every fixed delay by ±25% so the cadence is not a
+	// perfectly periodic pattern.
+	Humanize bool     `json:"humanize"`
+	Modules  []Module `json:"modules"`
+	Groups   []Group  `json:"groups"`
 
 	extras map[string]json.RawMessage
 }

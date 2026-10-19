@@ -64,6 +64,7 @@ export interface Profile {
   display: Display;
   loop: Loop;
   failsafe: Failsafe;
+  humanize: boolean;
   modules: Module[]; // ungrouped
   groups: Group[];
 }

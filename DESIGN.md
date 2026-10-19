@@ -298,6 +298,10 @@ last group's `delayAfter` is skipped because the loop delay already covers the g
 - `delayAfter` is a pause **after every click**, including the last one. So it sets both
   the inter-click period (`holdMs + delayAfter`) and the gap to the next module/group/pass.
   One knob for the whole cadence. `delayAfter = 0` means "as soon as the release lands".
+- **`humanize`** (profile-level, default off). When on, every **fixed** delay —
+  `delayAfter` (per click, which also spaces modules), a group's `delayAfter`, and a fixed
+  `loopDelay` — is drawn uniformly in ±25% of its value, so the cadence is not perfectly
+  periodic. A `{min,max}` `loopDelay` is already random and keeps its own range.
 - On any exit path, held buttons are released ([§6](#6-safety)).
 - **Pause gates at click boundaries** — an in-flight click (down → hold → up) always
   completes. While paused, *all* engine delays are frozen (click spacing, `delayAfter`,
@@ -904,6 +908,7 @@ after the fact. That is why the hotkey can safely be a silent no-op.
 |---|---|
 | Hotkeys | Editable **Run / Stop** and **Pause / Resume** triggers (canonicalized on Apply; the portal re-prompts consent), the active source (`Portal (KDE)`, `X11 grab`, `Windows RegisterHotKey`, or ⚠ unavailable), plus the **"Enable native Wayland input"** action when the app is on the `x11` fallback and `libei` is available ([§2.2](#22-backend-selection)). |
 | Safety (per profile) | Max runtime for the **open profile** (`failsafe.maxRuntimeSec`, minutes, `0` = unlimited; new profiles seeded from `defaultMaxRuntimeSec`, default 60). This edits the profile, not a global — the cap travels with the file ([§3.10](#310-app-settings-schema)). Corner failsafe toggle — **disabled with a tooltip when `CursorPos()` is unavailable**. The whole group is disabled when no profile is open. |
+| Timing (per profile) | **Humanize delays** toggle: when on, every fixed delay is drawn in ±25% of its value ([§3.2](#32-timing)). |
 | Profiles | Resolved folder path, `Open folder`, `Change…` |
 | Advanced | `defaultMaxRuntimeSec` (seed for new profiles); resolved log folder + `Open log folder` |
 | Updates | Current version, a **Check for updates** button (manual trigger) and the Update action when a newer release is found ([§5.9](#59-self-update)) |
@@ -1345,8 +1350,8 @@ GTK4/WebKitGTK-6.0, so the runtime deps match the platform scope in
 
 ### Phase 2 — polish
 
-Hotkey rebinding in Settings; `delayAfterRange` (humanized per-click pauses); theme
-(light/system); run history. Each is optional and independent — see the backlog below.
+Hotkey rebinding in Settings; theme (light/system); run history. Each is optional and
+independent — see the backlog below.
 
 ### Backlog (living list)
 
@@ -1357,8 +1362,8 @@ Hotkey rebinding in Settings; `delayAfterRange` (humanized per-click pauses); th
 | Tray icon / minimize-to-tray | **dropped** | closing the window keeps stopping the run |
 | Hotkey rebinding | ✅ done | edit the F8/F9 triggers in Settings (portal notation) |
 | Run history | ✅ done | append-only `runs.jsonl`, capped by a Settings count (`runHistoryLimit`) |
-| `delayAfterRange` | open | humanize the per-click delay like `loopDelay` |
-| Docs / lint | open | DESIGN §10 `package` row is stale; ESLint is not configured |
+| Delay humanization | ✅ done | profile `humanize` scales every fixed delay by ±25% |
+| Docs / lint | ✅ done | DESIGN §10 packaging row fixed; ESLint wired into CI |
 
 Removed from the backlog (decided / validated): mixed-DPI, fullscreen overlay,
 `ClickHere` at runtime, `XGrabKey`, portal consent, the manual release matrix, Windows
@@ -1484,9 +1489,10 @@ Design choices:
    off: with `cursor` modules the user's mouse is often *deliberately* near where they
    click, and a corner is easy to hit by accident. Current call: off, revisit after real
    usage.
-2. **`delayAfter` humanization.** Should `delayAfter` accept `{min,max}` like `loopDelay`
-   does, for a more human-looking rhythm? Deferred to Phase 2 to keep v1's rate story
-   simple (fixed per-module, humanized per-pass).
+2. **`delayAfter` humanization.** Resolved without a new range field: the profile has a
+   `humanize` toggle that draws every fixed delay in ±25% of its value ([§3.2](#32-timing)).
+   Fixed per-click, per-group and per-pass delays all become irregular; explicit
+   `{min,max}` loop ranges keep their own range.
 3. **Burst vs rate ergonomics.** `count` is capped at 1000 and continuous clicking is
    expressed with `loop: forever`. Is that discoverable enough, or should the UI offer a
    "repeat" helper that *writes* that combination for the user? Worth a usability pass
@@ -1520,6 +1526,7 @@ Design choices:
     "maxRuntimeSec": 3600,         // 0 = unlimited
     "mouseToCornerStops": false    // requires CursorPos; capability-gated in the UI
   },
+  "humanize": false,               // true → every fixed delay drawn in ±25%
   "modules": [                     // ungrouped clicks (§3.12)
     {
       "kind": "click",             // reserved discriminator; absent == "click" (§3.9)

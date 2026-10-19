@@ -259,6 +259,42 @@ func TestStopReleasesWithoutTrailingClick(t *testing.T) {
 	}
 }
 
+func TestHumanizeScalesFixedDelays(t *testing.T) {
+	m := model.NewModule()
+	m.Count = 2
+	m.HoldMs = 0
+	m.DelayAfter = 100
+
+	p := onceProfile(m)
+	p.Humanize = true
+
+	clk := newAutoClock()
+	e := New(NewFakeDriver(clk), WithClock(clk), WithRng(fixedRng{n: 0}))
+	if err := e.Run(p); err != nil {
+		t.Fatal(err)
+	}
+	waitIdle(t, e)
+
+	for _, d := range clk.Sleeps() {
+		if d < 75*time.Millisecond || d > 125*time.Millisecond {
+			t.Errorf("humanized sleep %v outside ±25%% of 100ms", d)
+		}
+	}
+
+	// Humanize off: the fixed value is used verbatim.
+	clk2 := newAutoClock()
+	e2 := New(NewFakeDriver(clk2), WithClock(clk2), WithRng(fixedRng{n: 0}))
+	if err := e2.Run(onceProfile(m)); err != nil {
+		t.Fatal(err)
+	}
+	waitIdle(t, e2)
+	for _, d := range clk2.Sleeps() {
+		if d != 100*time.Millisecond {
+			t.Errorf("non-humanized sleep = %v, want 100ms", d)
+		}
+	}
+}
+
 func TestGroupRepeatRunsBlockNTimes(t *testing.T) {
 	m := model.NewModule()
 	m.Count = 1
