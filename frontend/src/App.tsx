@@ -15,6 +15,31 @@ import { UNGROUPED, useProfiles } from "./state/useProfiles";
 import { useRunner } from "./state/useRunner";
 import { useSettings } from "./state/useSettings";
 
+// keyName maps a KeyboardEvent key to the canonical name used in triggers.
+function keyName(e: KeyboardEvent): string {
+  const named: Record<string, string> = {
+    " ": "SPACE", Escape: "ESC", ArrowUp: "UP", ArrowDown: "DOWN",
+    ArrowLeft: "LEFT", ArrowRight: "RIGHT", Enter: "ENTER", Backspace: "BACKSPACE",
+    Delete: "DELETE", Insert: "INSERT", Home: "HOME", End: "END",
+    PageUp: "PAGEUP", PageDown: "PAGEDOWN", Tab: "TAB",
+  };
+  return named[e.key] ?? e.key.toUpperCase();
+}
+
+// matchesTrigger compares a KeyboardEvent against a canonical trigger such as
+// "CTRL+SHIFT+F8". Used so the in-window shortcuts follow rebinding.
+function matchesTrigger(e: KeyboardEvent, trigger?: string): boolean {
+  if (!trigger) return false;
+  const parts = trigger.toUpperCase().split("+");
+  const key = parts.pop() ?? "";
+  const mods = new Set(parts);
+  if (e.ctrlKey !== mods.has("CTRL")) return false;
+  if (e.shiftKey !== mods.has("SHIFT")) return false;
+  if (e.altKey !== mods.has("ALT")) return false;
+  if (e.metaKey !== mods.has("LOGO")) return false;
+  return keyName(e) === key;
+}
+
 export default function App() {
   const api = useMemo(createApi, []);
   const profiles = useProfiles(api);
@@ -64,10 +89,10 @@ export default function App() {
         }
         return;
       }
-      if (e.key === "F8") {
+      if (matchesTrigger(e, settings?.hotkeys.run)) {
         e.preventDefault();
         runOrStop();
-      } else if (e.key === "F9") {
+      } else if (matchesTrigger(e, settings?.hotkeys.pause)) {
         e.preventDefault();
         if (runner.paused) void runner.resume();
         else if (runner.running) void runner.pause();
@@ -300,6 +325,7 @@ export default function App() {
         progress={runner.progress}
         canRun={canRun}
         blockReason={blocking?.message}
+        hotkeys={settings?.hotkeys}
         onRun={runOrStop}
         onStop={() => void runner.stop()}
         onPause={() => void runner.pause()}

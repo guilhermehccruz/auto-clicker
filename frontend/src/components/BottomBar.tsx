@@ -1,4 +1,4 @@
-import type { Loop, LoopMode, Progress, RunState } from "../api/types";
+import type { Hotkeys, Loop, LoopMode, Progress, RunState } from "../api/types";
 import { numberInput } from "../lib/format";
 import { RunControls } from "./RunControls";
 import { Select } from "./Select";
@@ -14,6 +14,7 @@ export function BottomBar({
   progress,
   canRun,
   blockReason,
+  hotkeys,
   onRun,
   onStop,
   onPause,
@@ -25,6 +26,7 @@ export function BottomBar({
   progress: Progress;
   canRun: boolean;
   blockReason?: string;
+  hotkeys?: Hotkeys;
   onRun: () => void;
   onStop: () => void;
   onPause: () => void;
@@ -92,6 +94,7 @@ export function BottomBar({
         state={progress.state as RunState}
         canRun={canRun}
         blockReason={blockReason}
+        hotkeys={hotkeys}
         onRun={onRun}
         onStop={onStop}
         onPause={onPause}

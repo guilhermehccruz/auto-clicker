@@ -4,8 +4,11 @@
 package service
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -483,15 +486,24 @@ func (s *Service) Resume() error { return s.engine.Resume() }
 // Status returns the latest progress.
 func (s *Service) Status() engine.Progress { return s.engine.Status() }
 
-// hotkeyBindings returns the configured global shortcuts.
+// hotkeyBindings returns the configured global shortcuts. The binding id
+// carries the action prefix plus a short hash of the trigger: KDE's portal
+// treats a known (component, id) as a "returning" shortcut and keeps the old
+// binding, ignoring preferred_trigger, so a new trigger must be a new id.
 func (s *Service) hotkeyBindings() []hotkey.Binding {
 	s.mu.Lock()
 	hk := s.settings.Hotkeys
 	s.mu.Unlock()
 	return []hotkey.Binding{
-		{ID: "run", Label: "Run / Stop", Trigger: hk.Run},
-		{ID: "pause", Label: "Pause / Resume", Trigger: hk.Pause},
+		{ID: bindingID("run", hk.Run), Label: "Run / Stop", Trigger: hk.Run},
+		{ID: bindingID("pause", hk.Pause), Label: "Pause / Resume", Trigger: hk.Pause},
 	}
+}
+
+// bindingID keeps the action prefix stable while changing with the trigger.
+func bindingID(action, trigger string) string {
+	sum := sha1.Sum([]byte(trigger))
+	return action + "-" + hex.EncodeToString(sum[:3])
 }
 
 // RegisterHotkeys binds the configured global shortcuts. It may block on a
@@ -517,6 +529,7 @@ func (s *Service) SetHotkeys(run, pause string) (store.Settings, error) {
 	if cr == cp {
 		return store.Settings{}, errors.New("hotkeys: Run and Pause must differ")
 	}
+	log.Printf("hotkey: rebind requested run=%s pause=%s", cr, cp)
 
 	s.mu.Lock()
 	s.settings.Hotkeys = store.Hotkeys{Run: cr, Pause: cp}
@@ -554,7 +567,11 @@ func (s *Service) HotkeySourceName() string { return s.hotkeys.Name() }
 // onHotkey routes an activation to the runner.
 func (s *Service) onHotkey(id string) {
 	log.Printf("hotkey: activated %q (engine %s)", id, s.engine.State())
-	switch id {
+	action, _, _ := strings.Cut(id, "-")
+	if action == "" {
+		action = id
+	}
+	switch action {
 	case "run":
 		if s.engine.State() == engine.StateIdle {
 			s.mu.Lock()

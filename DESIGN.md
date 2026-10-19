@@ -1619,7 +1619,11 @@ cost a debugging session each. Verified against `xdg-desktop-portal` 1.21.1 sour
 7. **One `BindShortcuts` call with new shortcuts = one KDE consent dialog**, and the
    D-Bus reply is deferred until the user answers it (`delayReply`). The app must not
    block as if it hung; an unanswered dialog stalls registration indefinitely. Shortcuts
-   already present in the component are "returning" and skip the dialog.
+   already present in the component are "returning" and skip the dialog. A returning
+   `(component, id)` also **keeps its old trigger** even when `preferred_trigger` changes,
+   so the app derives the shortcut id from the trigger (`run-<hash>`, `pause-<hash>`):
+   rebinding is a new id (one dialog), while restarts with the same trigger hit the
+   returning path (no dialog).
    **`BindShortcuts` is asynchronous**: it returns `o request_handle`, and the granted
    shortcuts arrive in the `Response` signal's `shortcuts` result (`a(sa{sv})`) — *not* as
    the method's return value. Storing the method return directly fails with
