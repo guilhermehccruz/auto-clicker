@@ -69,7 +69,7 @@ export function ModuleList({
   onSetGroupEnabled: (id: string, enabled: boolean) => void;
   onRemoveGroup: (id: string) => void;
   onMoveGroup: (from: number, to: number) => void;
-  onAddModule: (containerId: string) => void;
+  onAddModule: (containerId: string, kind: "click" | "key") => void;
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -256,7 +256,7 @@ function Section({
   onSetGroupEnabled: (id: string, enabled: boolean) => void;
   onRemoveGroup: (id: string) => void;
   onMoveGroup: (from: number, to: number) => void;
-  onAddModule: (containerId: string) => void;
+  onAddModule: (containerId: string, kind: "click" | "key") => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: container.key });
   const g = container.group;
@@ -410,7 +410,8 @@ function Section({
                 ≡
               </span>
               <Dropdown label="⋮" ariaLabel="Group menu">
-                <MenuItem onClick={() => onAddModule(g.id)} disabled={locked}>Add click</MenuItem>
+                <MenuItem onClick={() => onAddModule(g.id, "click")} disabled={locked}>Add click</MenuItem>
+                <MenuItem onClick={() => onAddModule(g.id, "key")} disabled={locked}>Add key</MenuItem>
                 <MenuItem onClick={() => onSetGroupEnabled(g.id, !g.enabled)} disabled={locked}>
                   {g.enabled ? "Disable group" : "Enable group"}
                 </MenuItem>
@@ -467,14 +468,24 @@ function Section({
             Drop clicks here{g ? ` to add them to “${g.name}”` : ""}.
           </p>
         )}
-        <button
-          type="button"
-          disabled={locked}
-          onClick={() => onAddModule(container.modelId)}
-          className="self-start rounded px-2 py-1 text-[12px] text-neutral-300 enabled:hover:bg-neutral-800 disabled:opacity-40"
-        >
-          + Add click
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={locked}
+            onClick={() => onAddModule(container.modelId, "click")}
+            className="rounded px-2 py-1 text-[12px] text-neutral-300 enabled:hover:bg-neutral-800 disabled:opacity-40"
+          >
+            + Add click
+          </button>
+          <button
+            type="button"
+            disabled={locked}
+            onClick={() => onAddModule(container.modelId, "key")}
+            className="rounded px-2 py-1 text-[12px] text-neutral-300 enabled:hover:bg-neutral-800 disabled:opacity-40"
+          >
+            + Add key
+          </button>
+        </div>
       </div>
       )}
     </section>

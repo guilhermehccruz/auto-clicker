@@ -10,6 +10,8 @@ import (
 
 	"github.com/go-vgo/robotgo/libei"
 	"github.com/go-vgo/robotgo/x11"
+
+	"auto-clicker/internal/model"
 )
 
 type linuxBackend int
@@ -33,6 +35,8 @@ type linuxDriver struct {
 	// primary monitor origin in root (bounding-box) coordinates, cached.
 	ox, oy    int
 	originSet bool
+	// heldKeys holds combos pressed with KeyDown and not released yet.
+	heldKeys []string
 }
 
 // primaryOrigin returns the primary monitor's top-left in X11 root coordinates.
@@ -165,6 +169,79 @@ func (d *linuxDriver) ButtonUp(b Button) error {
 	return x11.MouseUp(b.String())
 }
 
+func (d *linuxDriver) keyDownOne(k string) error {
+	if d.be == backendLibei {
+		return libei.KeyDown(k)
+	}
+	return x11.KeyDown(k)
+}
+
+func (d *linuxDriver) keyUpOne(k string) error {
+	if d.be == backendLibei {
+		return libei.KeyUp(k)
+	}
+	return x11.KeyUp(k)
+}
+
+func (d *linuxDriver) KeyTap(combo string, hold time.Duration) error {
+	if err := d.KeyDown(combo); err != nil {
+		return err
+	}
+	time.Sleep(hold)
+	return d.KeyUp(combo)
+}
+
+func (d *linuxDriver) KeyDown(combo string) error {
+	mods, key, err := model.ParseKeyCombo(combo)
+	if err != nil {
+		return err
+	}
+	var pressed []string
+	release := func() {
+		for i := len(pressed) - 1; i >= 0; i-- {
+			_ = d.keyUpOne(pressed[i])
+		}
+	}
+	for _, m := range mods {
+		if err := d.keyDownOne(m); err != nil {
+			release()
+			return err
+		}
+		pressed = append(pressed, m)
+	}
+	if err := d.keyDownOne(key); err != nil {
+		release()
+		return err
+	}
+	d.heldKeys = append(d.heldKeys, combo)
+	return nil
+}
+
+// releaseKeyCombo releases the key and its modifiers (reverse order).
+func (d *linuxDriver) releaseKeyCombo(combo string) error {
+	mods, key, err := model.ParseKeyCombo(combo)
+	if err != nil {
+		return err
+	}
+	var errs []error
+	errs = append(errs, d.keyUpOne(key))
+	for i := len(mods) - 1; i >= 0; i-- {
+		errs = append(errs, d.keyUpOne(mods[i]))
+	}
+	return errors.Join(errs...)
+}
+
+func (d *linuxDriver) KeyUp(combo string) error {
+	err := d.releaseKeyCombo(combo)
+	for i, h := range d.heldKeys {
+		if h == combo {
+			d.heldKeys = append(d.heldKeys[:i], d.heldKeys[i+1:]...)
+			break
+		}
+	}
+	return err
+}
+
 func (d *linuxDriver) CursorPos() (int, int, bool) {
 	if !d.queryOK {
 		return 0, 0, false
@@ -212,6 +289,13 @@ func (d *linuxDriver) Displays() ([]Display, error) {
 
 func (d *linuxDriver) ReleaseAll() error {
 	var first error
+	held := append([]string(nil), d.heldKeys...)
+	d.heldKeys = nil
+	for i := len(held) - 1; i >= 0; i-- {
+		if err := d.releaseKeyCombo(held[i]); err != nil && first == nil {
+			first = err
+		}
+	}
 	for _, b := range []Button{Left, Right, Middle} {
 		if err := d.ButtonUp(b); err != nil && first == nil {
 			first = err

@@ -75,6 +75,13 @@ type Driver interface {
 	ButtonDown(button Button) error
 	ButtonUp(button Button) error
 
+	// KeyTap presses and releases a combo ("ctrl+shift+c"), holding the key for
+	// hold before releasing. KeyDown/KeyUp keep a combo held; ReleaseAll
+	// releases anything still down.
+	KeyTap(combo string, hold time.Duration) error
+	KeyDown(combo string) error
+	KeyUp(combo string) error
+
 	// CursorPos reports the real pointer position. ok == false when the active
 	// backend cannot read it. Callers must degrade, never guess.
 	CursorPos() (x, y int, ok bool)

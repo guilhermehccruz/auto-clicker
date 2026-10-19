@@ -259,6 +259,39 @@ func TestStopReleasesWithoutTrailingClick(t *testing.T) {
 	}
 }
 
+func TestKeyModulePressesKeys(t *testing.T) {
+	m := model.NewKeyModule()
+	m.Keys = "ctrl+c"
+	m.Count = 2
+	m.HoldMs = 5
+	m.DelayAfter = 0
+
+	drv := input.NewFake()
+	e := New(drv, WithClock(newAutoClock()))
+	if err := e.Run(onceProfile(m)); err != nil {
+		t.Fatal(err)
+	}
+	waitIdle(t, e)
+
+	var keys []input.Call
+	for _, c := range drv.Calls {
+		if c.Op == "KeyTap" {
+			keys = append(keys, c)
+		}
+	}
+	if len(keys) != 2 {
+		t.Fatalf("key taps = %d, want 2", len(keys))
+	}
+	for _, c := range keys {
+		if c.Keys != "ctrl+c" || c.Hold != 5*time.Millisecond {
+			t.Errorf("key tap = %+v, want ctrl+c/5ms", c)
+		}
+	}
+	if got := e.Status().Clicks; got != 2 {
+		t.Errorf("clicks = %d, want 2", got)
+	}
+}
+
 func TestHumanizeScalesFixedDelays(t *testing.T) {
 	m := model.NewModule()
 	m.Count = 2

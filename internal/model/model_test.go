@@ -276,6 +276,55 @@ func TestGroupRepeatAndDelayValidation(t *testing.T) {
 	}
 }
 
+func TestParseKeyCombo(t *testing.T) {
+	cases := []struct {
+		in   string
+		key  string
+		mods string
+		ok   bool
+	}{
+		{"ctrl+shift+c", "c", "ctrl,shift", true},
+		{"F5", "f5", "", true},
+		{"super+space", "space", "cmd", true},
+		{"control+alt+delete", "delete", "ctrl,alt", true},
+		{"ctrl+", "", "", false},
+		{"hyper+a", "", "", false},
+		{"ctrl+nope", "", "", false},
+		{"", "", "", false},
+	}
+	for _, tc := range cases {
+		mods, key, err := ParseKeyCombo(tc.in)
+		if (err == nil) != tc.ok {
+			t.Errorf("%q: err = %v, want ok=%v", tc.in, err, tc.ok)
+			continue
+		}
+		if !tc.ok {
+			continue
+		}
+		if key != tc.key || strings.Join(mods, ",") != tc.mods {
+			t.Errorf("%q: got key=%q mods=%v, want key=%q mods=%q", tc.in, key, mods, tc.key, tc.mods)
+		}
+	}
+}
+
+func TestKeyModuleValidation(t *testing.T) {
+	p := NewProfile("t", Display{}, DefaultMaxRuntimeSec)
+	m := NewKeyModule()
+	p.Modules = []Module{m}
+	if !HasBlocking(Validate(p, Desktop{})) {
+		t.Error("a key module without a combo must block")
+	}
+
+	m.Keys = "ctrl+c"
+	p.Modules = []Module{m}
+	if issues := Validate(p, Desktop{}); HasBlocking(issues) {
+		t.Errorf("valid key module should not block: %v", issues)
+	}
+	if got := m.Summary(); got != "ctrl+c ×1 hold 10ms delay 50ms" {
+		t.Errorf("Summary = %q", got)
+	}
+}
+
 func TestSummaryAndLabel(t *testing.T) {
 	m := NewModule()
 	m.Target = NewAbsoluteTarget(940, 520)

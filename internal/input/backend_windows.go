@@ -9,11 +9,15 @@ import (
 
 	"github.com/go-vgo/robotgo/win"
 	tw "github.com/tailscale/win"
+
+	"auto-clicker/internal/model"
 )
 
 // windowsDriver injects through the pure-Go SendInput backend. It can read the
 // real cursor and enumerate displays, so absolute targets are always available.
-type windowsDriver struct{}
+type windowsDriver struct {
+	heldKeys []string
+}
 
 // New returns the Windows driver.
 func New() (Driver, error) {
@@ -68,6 +72,64 @@ func (d *windowsDriver) Move(x, y int) error {
 func (d *windowsDriver) ButtonDown(b Button) error { return win.MouseDown(b.String()) }
 func (d *windowsDriver) ButtonUp(b Button) error   { return win.MouseUp(b.String()) }
 
+func (d *windowsDriver) KeyTap(combo string, hold time.Duration) error {
+	if err := d.KeyDown(combo); err != nil {
+		return err
+	}
+	time.Sleep(hold)
+	return d.KeyUp(combo)
+}
+
+func (d *windowsDriver) KeyDown(combo string) error {
+	mods, key, err := model.ParseKeyCombo(combo)
+	if err != nil {
+		return err
+	}
+	var pressed []string
+	release := func() {
+		for i := len(pressed) - 1; i >= 0; i-- {
+			_ = win.KeyUp(pressed[i])
+		}
+	}
+	for _, m := range mods {
+		if err := win.KeyDown(m); err != nil {
+			release()
+			return err
+		}
+		pressed = append(pressed, m)
+	}
+	if err := win.KeyDown(key); err != nil {
+		release()
+		return err
+	}
+	d.heldKeys = append(d.heldKeys, combo)
+	return nil
+}
+
+func (d *windowsDriver) releaseKeyCombo(combo string) error {
+	mods, key, err := model.ParseKeyCombo(combo)
+	if err != nil {
+		return err
+	}
+	var errs []error
+	errs = append(errs, win.KeyUp(key))
+	for i := len(mods) - 1; i >= 0; i-- {
+		errs = append(errs, win.KeyUp(mods[i]))
+	}
+	return errors.Join(errs...)
+}
+
+func (d *windowsDriver) KeyUp(combo string) error {
+	err := d.releaseKeyCombo(combo)
+	for i, h := range d.heldKeys {
+		if h == combo {
+			d.heldKeys = append(d.heldKeys[:i], d.heldKeys[i+1:]...)
+			break
+		}
+	}
+	return err
+}
+
 func (d *windowsDriver) CursorPos() (int, int, bool) {
 	// Already primary-relative.
 	x, y := win.Location()
@@ -101,6 +163,13 @@ func (d *windowsDriver) Displays() ([]Display, error) {
 
 func (d *windowsDriver) ReleaseAll() error {
 	var first error
+	held := append([]string(nil), d.heldKeys...)
+	d.heldKeys = nil
+	for i := len(held) - 1; i >= 0; i-- {
+		if err := d.releaseKeyCombo(held[i]); err != nil && first == nil {
+			first = err
+		}
+	}
 	for _, b := range []Button{Left, Right, Middle} {
 		if err := win.MouseUp(b.String()); err != nil && first == nil {
 			first = err

@@ -235,7 +235,7 @@ Exact patch versions live in the lockfile; CI uses the pinned Node major
 Profile  (one .json file — e.g. "idle-tycoon.json"; the filename IS the profile id)
  ├── loop, failsafe, display snapshot
  └── modules[]   ordered; each = ONE click step
-      ├── kind (reserved), id, name, enabled
+      ├── kind (click|key), id, name, enabled
       ├── target: absolute{x,y} | cursor
       └── button, count, holdMs, delayAfter
 ```
@@ -273,11 +273,14 @@ for pass in loop:
     for block in plan:                 # ungrouped first, then each enabled group
         for r in 0 .. block.repeat-1:  # ungrouped repeat is always 1
             for m in block.modules:
-                resolve target
-                if absolute: Move(x, y)          # instant, no animation
-                if cursor:   (no motion)
-                ButtonDown(m.button); sleep(m.holdMs); ButtonUp(m.button)
-                sleep(m.delayAfter)              # after EVERY click
+                if m.kind is key:
+                    KeyDown(m.keys); sleep(m.holdMs); KeyUp(m.keys)
+                else:
+                    resolve target
+                    if absolute: Move(x, y)      # instant, no animation
+                    if cursor:   (no motion)
+                    ButtonDown(m.button); sleep(m.holdMs); ButtonUp(m.button)
+                sleep(m.delayAfter)              # after EVERY action
         if block is a group and not the last block: sleep(block.delayAfter)
     if more passes: sleep(loopDelay)
 ```
@@ -328,20 +331,23 @@ last group's `delayAfter` is skipped because the loop delay already covers the g
 
 | Field | Type | Default | Range | Meaning |
 |---|---|---|---|---|
+| `kind` | enum | `"click"` | `click`/`key` | `click` = mouse action; `key` = press a keyboard combo (target/button unused) |
 | `id` | string | `m_` + 8 hex | — | stable id for DnD/React keys; unique within the profile |
 | `name` | string | `""` | ≤ 80 chars | optional user label; when empty the UI shows the generated summary (`(940, 520) ×3`) |
 | `enabled` | bool | `true` | — | participates in the run; keeps its list slot when off |
 | `target` | object | `{"kind":"absolute"}` | — | `absolute {x,y}` or `cursor` ([§3.4](#34-targets)); a new module has no coordinates yet, so validation asks for them |
 | `button` | enum | `left` | `left`/`right`/`middle`/`none` | mouse button; `none` = **move only** (absolute target: moves without clicking; `holdMs` is ignored) |
-| `count` | int | `1` | 1–1000 | clicks per pass (burst size, *not* a rate) |
-| `holdMs` | int (ms) | `10` | 0–1000 | how long the button stays down per click |
-| `delayAfter` | int (ms) | `50` | 0–3600000 | pause after **every** click (period = `holdMs + delayAfter`; also the gap to the next module) |
+| `keys` | string | `""` | combo | key combo for `kind: key`, lowercase robotgo names (`ctrl+shift+c`, `f5`, `space`); validation blocks an empty combo |
+| `count` | int | `1` | 1–1000 | actions per pass (burst size, *not* a rate) |
+| `holdMs` | int (ms) | `10` | 0–1000 | how long the button/key stays down per action |
+| `delayAfter` | int (ms) | `50` | 0–3600000 | pause after **every** action (period = `holdMs + delayAfter`; also the gap to the next module) |
 | `clickInterval` | int (ms) | `0` | 0–60000 | **deprecated**; folded into `delayAfter` on load, no longer edited or run |
 
 Design notes:
-- **Safe defaults.** A freshly added module is `absolute`-targeted **with no coordinates**,
+- **Safe defaults.** A freshly added click is `absolute`-targeted **with no coordinates**,
   so validation blocks the run until the user picks a point (nothing is clicked at 0,0 by
-  accident), and `delayAfter: 50` keeps a configured run at a sane rate. `count`
+  accident); a freshly added key module has an empty combo and is blocked until recorded.
+  `delayAfter: 50` keeps a configured run at a sane rate. `count`
   caps at 1000 because continuous clicking is what `loop: forever` is for; the card shows
   a hint to that effect when the user types a large value.
 - `holdMs` defaults to 10 ms rather than 0 because some targets ignore presses shorter
@@ -546,8 +552,9 @@ Rules:
 
 Two cheap conventions now avoid a rewrite later:
 
-- Every module carries a reserved `kind`: today all modules are clicks, but if drag or
-  scroll modules are ever added, they arrive as `"kind": "click" | "drag" | "scroll"`
+- Every module carries a `kind`: `click` or `key`. If drag or scroll modules are ever
+  added, they arrive as new kinds (`"drag"`, `"scroll"`) — a schema addition, not a
+  rewrite. Absent `kind` means `"click"`.
   with `kind` **absent meaning `"click"`**. Reserving the discriminator costs one line in
   the docs and keeps old files valid.
 - Unknown fields are preserved on round-trip ([§3.8](#38-where-profiles-are-stored)), so
@@ -844,7 +851,8 @@ Interaction rules:
   collapsible-looking section with an enable switch, its own click list, a **repeat** input
   (×N) and a **delay** input (ms) for the gap to the next group). Groups are one
   level deep — not nested action rows, which keeps the flat-list simplicity
-  ([§3.12](#312-groups)). `+ Add group` creates one; `+ Add click` inside a group adds to
+  ([§3.12](#312-groups)). `+ Add group` creates one; `+ Add click` / `+ Add key` inside a
+  group adds to
   that group. Drag a click between groups (or the ungrouped list) and reorder within a
   container, and **groups are reordered by dragging the group handle (≡)** — no arrow
   buttons. Each section can be **collapsed** (▸/▾) to hide its list — UI-only state, not
@@ -868,6 +876,7 @@ prefer the mouse or cannot drag.
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
 │ ☑  1   (940, 520)  left ×3  hold 10ms  delay 90ms             ≡   ⋮  │
+│ ☑  2   ⌨ ctrl+c   ×1  hold 10ms  delay 50ms                    ≡   ⋮  │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -875,19 +884,23 @@ prefer the mouse or cannot drag.
 |---|---|
 | Enable switch | toggles `enabled`; card dims when off |
 | Order badge | **execution order** (`1..n`) among enabled modules; `–` when disabled, so the real sequence is readable at a glance |
-| Target chip | `(940, 520)` mono, `⌖ at cursor`, or `⚠ off-screen` |
-| Summary | `left ×3 hold 10ms delay 90ms` — generated from fields, never stale |
+| Target / key chip | `(940, 520)`, `⌖ at cursor`, `⚠ off-screen`, or for key modules `⌨ ctrl+c` |
+| Summary | `left ×3 hold 10ms delay 90ms` or `ctrl+c ×1 hold 10ms delay 50ms` — generated from fields, never stale |
 | Drag handle `≡` | hidden while running |
 | Menu `⋮` | Duplicate · Move up · Move down · Enable/Disable · Delete |
 
 Expanding a card (or its menu → Expand) reveals the edit row:
 
 ```
-label   [                              ]  (optional; empty → generated summary)
-target  ( ▪ absolute   ○ cursor )        pick position ⌖
-        x [ 940 ]  y [ 520 ]
-button  [ left ▼ ]   count [ 3 ]   delay [ 90 ] ms   hold [ 10 ] ms
+click: label [            ]  target ( ▪ absolute  ○ cursor )  pick ⌖  x [940] y [520]
+       button [ left ▼ ]   count [ 3 ]   delay [ 90 ] ms   hold [ 10 ] ms
+
+key:   label [            ]  keys [ ctrl+c ]  (focus and press; clear)
+       count [ 1 ]   delay [ 50 ] ms   hold [ 10 ] ms
 ```
+
+A **key module** is added with `+ Add key` (section footer or group menu) and opens
+expanded with an empty combo, so the run stays blocked until one is recorded.
 
 - **Clicking a card expands it** for editing (click again to collapse); the card menu no
   longer carries an "Expand/edit" item. **A newly added click opens expanded**, and adding
@@ -952,6 +965,7 @@ Run is blocked, with the reason shown inline next to the offending control:
 | Rule | Kind |
 |---|---|
 | At least one module is **effectively** enabled (module **and** its group) | blocking |
+| A `kind: key` module has a valid non-empty combo (`ctrl+shift+c`, `f5`, `space`) | blocking |
 | Every enabled `absolute` module has `x` and `y` | blocking |
 | Move-only (`button: none`) with a `cursor` target | warning |
 | Group ids are unique; each group has an id | blocking |
@@ -1369,8 +1383,9 @@ portable archives, mouse and keyboard operation.
 | Run history | ✅ done | append-only `runs.jsonl`, capped by a Settings count (`runHistoryLimit`) |
 | Delay humanization | ✅ done | profile `humanize` scales every fixed delay by ±25% |
 | Docs / lint | ✅ done | DESIGN §10 packaging row fixed; ESLint wired into CI |
-| Keyboard-only operation | open | select and operate modules/groups without the mouse; needs a focus/selection model and a shortcut map |
-| Hold action | open | press and keep a key or mouse button down until Stop. A hold blocks the rest of the pipeline, so decide whether it must be the **last** active item |
+| Keyboard actions (key modules) | ✅ done | `kind: key` presses a combo (target/button unused), same count/hold/delay; capture UI, validation and x11/libei/win injection |
+| App keyboard navigation | open | select and operate modules/groups without the mouse; needs a focus/selection model and a shortcut map |
+| Hold action | open | mouse button **or** key, held until Stop; decided: it must be the last enabled item and the profile loop must be `once` |
 | Single app folder | ✅ done | `app.log`, `settings.json`, `runs.jsonl` in the app root; profiles in `profiles/`; startup migration; one Open app folder button |
 | History modal | ✅ done | opened from the sidebar; lists `runs.jsonl` and owns Clear + the retention count |
 | Profile controls on the main screen | ✅ done | max runtime + humanize sit in the bottom bar's second row |
@@ -1395,7 +1410,7 @@ see [§3.9](#39-schema-evolution).
 | Layer | Approach |
 |---|---|
 | `internal/model` | table-driven validation tests (every blocking and warning rule), JSON round-trip for **profiles and settings**, **unknown-field preservation** (encode → decode → encode is byte-stable), schema-version refusal, slug edge cases (blank, all-non-ASCII → `profile`, truncation) and collision/duplicate naming, first-run template contents, **group gating** (effective enabled, `EnabledCount`) and group round-trip/unknown-field preservation |
-| `internal/engine` | `FakeDriver` + a **fake clock** + a **seeded `Rng`**: plan order (disabled skipped, order preserved; ungrouped then groups; a disabled group skips its modules), group `repeat` and `delayAfter` (last group skipped), per-click `delayAfter` spacing (`holdMs + delayAfter`), loop modes incl. `loopDelay` not applied after the last pass, uniform inclusive `loopDelay` draws, **resume does not re-roll** a drawn delay, `ElapsedMs`/`maxRuntime` exclude paused time, cancel-before-next-click, pause gating and resume-from-zero, stop releases without a trailing click, `ReleaseAll` on every exit path |
+| `internal/engine` | `FakeDriver` + a **fake clock** + a **seeded `Rng`**: plan order (disabled skipped, order preserved; ungrouped then groups; a disabled group skips its modules), key modules press the combo `count` times with `holdMs`, group `repeat` and `delayAfter` (last group skipped), per-click `delayAfter` spacing (`holdMs + delayAfter`), loop modes incl. `loopDelay` not applied after the last pass, uniform inclusive `loopDelay` draws, **resume does not re-roll** a drawn delay, `ElapsedMs`/`maxRuntime` exclude paused time, cancel-before-next-click, pause gating and resume-from-zero, stop releases without a trailing click, `ReleaseAll` on every exit path |
 | `internal/input` | `FakeDriver` asserts no `Move` before `ClickHere`; capability degradation when `CursorPos` is unavailable; `Displays()` bounding box matches `ScreenSize()`; single-synthetic-display fallback |
 | `internal/store` | atomic write (temp+rename), path resolution via mocks/injection, `profilesDir` override validation and fallback, unreadable file listing without overwrite, single-instance lock acquire/release |
 | `internal/hotkey` | trigger-string parsing (the uppercase-modifier trap, [Appendix B](#appendix-b-global-shortcuts-portal-gotchas)) unit-testable in isolation; real grab is a manual check |
@@ -1539,7 +1554,8 @@ Design choices:
   "humanize": false,               // true → every fixed delay drawn in ±25%
   "modules": [                     // ungrouped clicks (§3.12)
     {
-      "kind": "click",             // reserved discriminator; absent == "click" (§3.9)
+      "kind": "click",             // "click" | "key"; absent == "click" (§3.9)
+      // "keys": "ctrl+c",         // required for kind: key; target/button unused
       "id": "m1",                  // string, stable; m_ + 8 hex, unique in the profile
       "name": "",                  // optional label; empty → UI generates a summary
       "enabled": true,
@@ -1567,9 +1583,9 @@ Design choices:
 Notes:
 - Absent numeric fields take the defaults in [§3.3](#33-module-fields-the-complete-vocabulary);
   the app always writes them explicitly so files are self-describing.
-- `"kind"` is written explicitly as `"click"`; **absent still means `"click"`** so files
-  from before the discriminator was introduced remain valid, see
-  [§3.9](#39-schema-evolution).
+- `"kind"` is written explicitly as `"click"`; **absent still means `"click"`**. A
+  `"kind": "key"` module adds `"keys": "ctrl+shift+c"` and ignores `target`/`button`
+  (same `count`, `holdMs`, `delayAfter`). See [§3.9](#39-schema-evolution).
 - **Groups** ([§3.12](#312-groups)): ungrouped `modules` run first, then each enabled
   `groups[]` entry in order; a module runs only if both it and its group are enabled. Each
   group repeats `repeat` times per pass, with `delayAfter` before the next group. Group

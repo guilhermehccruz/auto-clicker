@@ -2,6 +2,11 @@ import type { Group, Module } from "../api/types";
 
 // summary mirrors Go model.Module.Summary so the card and the engine agree.
 export function summary(m: Module): string {
+  if (m.kind === "key") {
+    let out = `${m.keys || "(no keys)"} ×${m.count} hold ${m.holdMs}ms`;
+    if (m.delayAfter > 0) out += ` delay ${m.delayAfter}ms`;
+    return out;
+  }
   const target =
     m.target.kind === "absolute"
       ? m.target.x !== undefined && m.target.y !== undefined
@@ -22,6 +27,7 @@ export function label(m: Module): string {
 }
 
 export function targetChip(m: Module, desktopW: number, desktopH: number): string {
+  if (m.kind === "key") return `⌨ ${m.keys || "no keys"}`;
   if (m.target.kind === "cursor") return "⌖ at cursor";
   const { x, y } = m.target;
   if (x === undefined || y === undefined) return "⚠ no coords";

@@ -31,6 +31,7 @@ const (
 // Module kinds. Absent means click.
 const (
 	KindClick = "click"
+	KindKey   = "key"
 )
 
 // Field ranges (see DESIGN §3.3 / §5.6).
@@ -114,7 +115,7 @@ type Group struct {
 	extras map[string]json.RawMessage
 }
 
-// Module is a single click step.
+// Module is a single click step or a key press.
 type Module struct {
 	Kind    string `json:"kind"`
 	ID      string `json:"id"`
@@ -123,6 +124,9 @@ type Module struct {
 	Target  Target `json:"target"`
 	Button  string `json:"button"`
 	Count   int    `json:"count"`
+	// Keys is the key combo for a KindKey module ("ctrl+shift+c"). It is absent
+	// on click modules.
+	Keys string `json:"keys,omitempty"`
 	// ClickInterval is deprecated (kept for JSON compatibility): it is folded
 	// into DelayAfter on load and no longer read by the engine.
 	ClickInterval int `json:"clickInterval"`

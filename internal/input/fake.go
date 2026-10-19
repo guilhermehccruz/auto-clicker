@@ -11,6 +11,7 @@ type Call struct {
 	X, Y   int
 	Button Button
 	Hold   time.Duration
+	Keys   string
 }
 
 // FakeDriver is a Driver for tests. It records intended calls and lets tests
@@ -106,6 +107,33 @@ func (f *FakeDriver) ButtonUp(b Button) error {
 		return f.InjectErr
 	}
 	f.record(Call{Op: "ButtonUp", Button: b})
+	return nil
+}
+
+func (f *FakeDriver) KeyTap(combo string, hold time.Duration) error {
+	if f.InjectErr != nil {
+		return f.InjectErr
+	}
+	f.record(Call{Op: "KeyTap", Keys: combo, Hold: hold})
+	if f.OnHold != nil {
+		f.OnHold(hold)
+	}
+	return nil
+}
+
+func (f *FakeDriver) KeyDown(combo string) error {
+	if f.InjectErr != nil {
+		return f.InjectErr
+	}
+	f.record(Call{Op: "KeyDown", Keys: combo})
+	return nil
+}
+
+func (f *FakeDriver) KeyUp(combo string) error {
+	if f.InjectErr != nil {
+		return f.InjectErr
+	}
+	f.record(Call{Op: "KeyUp", Keys: combo})
 	return nil
 }
 

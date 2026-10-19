@@ -38,6 +38,13 @@ export function validateProfile(p: Profile, current: Display): Issue[] {
     range("holdMs", m.holdMs, " ms");
     range("delayAfter", m.delayAfter, " ms");
 
+    if (m.kind === "key") {
+      if (!validKeyCombo(m.keys)) {
+        issues.push({ level: "blocking", moduleId: m.id, field: "keys", message: `${name}: record a key combo` });
+      }
+      return;
+    }
+
     if (m.target.kind === "absolute") {
       const { x, y } = m.target;
       if (effectiveEnabled && (x === undefined || y === undefined)) {
@@ -72,4 +79,24 @@ export function validateProfile(p: Profile, current: Display): Issue[] {
 
 export function hasBlocking(issues: Issue[]): boolean {
   return issues.some((i) => i.level === "blocking");
+}
+
+const KEY_NAMES = new Set([
+  "space", "enter", "tab", "esc", "backspace", "delete", "insert", "home",
+  "end", "pageup", "pagedown", "up", "down", "left", "right", "capslock",
+]);
+
+// validKeyCombo mirrors Go's model.ParseKeyCombo.
+function validKeyCombo(combo: string | undefined): boolean {
+  if (!combo) return false;
+  const parts = combo.toLowerCase().trim().split("+");
+  const key = parts.pop() ?? "";
+  if (!key) return false;
+  const okKey =
+    KEY_NAMES.has(key) ||
+    /^[a-z0-9]$/.test(key) ||
+    /^f([1-9]|1[0-9]|2[0-4])$/.test(key) ||
+    "`-=[]\\;',./".includes(key);
+  if (!okKey) return false;
+  return parts.every((m) => ["ctrl", "shift", "alt", "cmd"].includes(m));
 }

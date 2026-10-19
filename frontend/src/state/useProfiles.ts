@@ -22,7 +22,7 @@ export interface ProfilesState {
   update: (mutate: (p: Profile) => Profile) => void;
   flush: () => Promise<void>;
 
-  addModule: (containerId?: string) => string;
+  addModule: (containerId?: string, kind?: "click" | "key") => string;
   removeModule: (id: string) => void;
   restoreModule: (m: Module, containerId: string, index: number) => void;
   moveModule: (id: string, toContainer: string, toIndex: number) => void;
@@ -211,8 +211,8 @@ export function useProfiles(api: Api): ProfilesState {
 
   // addModule returns the new module id so the caller can expand it.
   const addModule = useCallback(
-    (containerId: string = UNGROUPED) => {
-      const m = newModule();
+    (containerId: string = UNGROUPED, kind: "click" | "key" = "click") => {
+      const m = newModule(kind);
       update((p) => {
         insertModule(p, containerId, Number.MAX_SAFE_INTEGER, m);
         return p;
@@ -346,17 +346,18 @@ function rand(): string {
   return Math.random().toString(16).slice(2, 10) + idCounter.toString(16);
 }
 
-export function newModule(): Module {
+export function newModule(kind: "click" | "key" = "click"): Module {
   return {
-    kind: "click",
+    kind,
     id: `m_${rand()}`,
     name: "",
     enabled: true,
-    target: { kind: "absolute" },
+    target: kind === "key" ? { kind: "cursor" } : { kind: "absolute" },
     button: "left",
     count: 1,
     holdMs: 10,
     delayAfter: 50,
+    ...(kind === "key" ? { keys: "" } : {}),
   };
 }
 

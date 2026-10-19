@@ -182,9 +182,9 @@ export default function App() {
     [api, profiles.updateModule],
   );
 
-  // addModule creates a click and expands it right away.
-  const addModule = (containerId: string = UNGROUPED) => {
-    const id = profiles.addModule(containerId);
+  // addModule creates a click or key module and expands it right away.
+  const addModule = (containerId: string = UNGROUPED, kind: "click" | "key" = "click") => {
+    const id = profiles.addModule(containerId, kind);
     setExpandedId(id);
     setSelected({ kind: "module", id });
   };

@@ -15,13 +15,14 @@ export interface Target {
 }
 
 export interface Module {
-  kind?: "click";
+  kind?: "click" | "key";
   id: string;
   name: string;
   enabled: boolean;
   target: Target;
   button: ButtonName;
   count: number;
+  keys?: string;
   /** @deprecated folded into delayAfter on load; no longer edited or run. */
   clickInterval?: number;
   holdMs: number;

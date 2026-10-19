@@ -81,33 +81,41 @@ func Validate(p *Profile, current Desktop) []Issue {
 		if m.DelayAfter < MinDelayAfter || m.DelayAfter > MaxDelayAfter {
 			add(Blocking, m.ID, "delayAfter", "%s: delay after must be %d–%d ms", label, MinDelayAfter, MaxDelayAfter)
 		}
-		switch m.Button {
-		case ButtonLeft, ButtonRight, ButtonMiddle:
-		case ButtonNone:
-			if m.Target.Kind == TargetCursor {
-				add(Warning, m.ID, "button", "%s: move-only does nothing with a cursor target", label)
+		switch m.Kind {
+		case KindKey:
+			if _, _, err := ParseKeyCombo(m.Keys); err != nil {
+				add(Blocking, m.ID, "keys", "%s: %v", label, err)
+			}
+		case KindClick, "":
+			switch m.Button {
+			case ButtonLeft, ButtonRight, ButtonMiddle:
+			case ButtonNone:
+				if m.Target.Kind == TargetCursor {
+					add(Warning, m.ID, "button", "%s: move-only does nothing with a cursor target", label)
+				}
+			default:
+				add(Blocking, m.ID, "button", "%s: unknown button %q", label, m.Button)
+			}
+			switch m.Target.Kind {
+			case TargetAbsolute:
+				if effectiveEnabled && !m.Target.HasCoords() {
+					add(Blocking, m.ID, "target", "%s: absolute target has no coordinates", label)
+				}
+			case TargetCursor:
+			default:
+				add(Blocking, m.ID, "target.kind", "%s: unknown target kind %q", label, m.Target.Kind)
+			}
+			// Warnings: off-screen coordinates.
+			if effectiveEnabled && m.Target.Kind == TargetAbsolute && m.Target.HasCoords() && current.MaxX > current.MinX && current.MaxY > current.MinY {
+				if m.Target.X < current.MinX || m.Target.Y < current.MinY || m.Target.X >= current.MaxX || m.Target.Y >= current.MaxY {
+					add(Warning, m.ID, "target", "%s: (%d, %d) is outside the current desktop", label, m.Target.X, m.Target.Y)
+				}
 			}
 		default:
-			add(Blocking, m.ID, "button", "%s: unknown button %q", label, m.Button)
-		}
-		switch m.Target.Kind {
-		case TargetAbsolute:
-			if effectiveEnabled && !m.Target.HasCoords() {
-				add(Blocking, m.ID, "target", "%s: absolute target has no coordinates", label)
-			}
-		case TargetCursor:
-		default:
-			add(Blocking, m.ID, "target.kind", "%s: unknown target kind %q", label, m.Target.Kind)
+			add(Blocking, m.ID, "kind", "%s: unknown kind %q", label, m.Kind)
 		}
 		if len(m.Name) > MaxNameLen {
 			add(Warning, m.ID, "name", "%s: label is longer than %d characters", label, MaxNameLen)
-		}
-
-		// Warnings: off-screen coordinates.
-		if effectiveEnabled && m.Target.Kind == TargetAbsolute && m.Target.HasCoords() && current.MaxX > current.MinX && current.MaxY > current.MinY {
-			if m.Target.X < current.MinX || m.Target.Y < current.MinY || m.Target.X >= current.MaxX || m.Target.Y >= current.MaxY {
-				add(Warning, m.ID, "target", "%s: (%d, %d) is outside the current desktop", label, m.Target.X, m.Target.Y)
-			}
 		}
 	}
 
@@ -171,6 +179,17 @@ func (m Module) Label() string {
 // Summary is the generated, always-current one-line description of a module.
 func (m Module) Summary() string {
 	var b strings.Builder
+	if m.Kind == KindKey {
+		combo := m.Keys
+		if combo == "" {
+			combo = "(no keys)"
+		}
+		fmt.Fprintf(&b, "%s ×%d hold %dms", combo, m.Count, m.HoldMs)
+		if m.DelayAfter > 0 {
+			fmt.Fprintf(&b, " delay %dms", m.DelayAfter)
+		}
+		return b.String()
+	}
 	switch {
 	case m.Target.Kind == TargetAbsolute && m.Target.HasCoords():
 		fmt.Fprintf(&b, "(%d, %d)", m.Target.X, m.Target.Y)

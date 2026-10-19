@@ -72,6 +72,15 @@ func NewModule() Module {
 	}
 }
 
+// NewKeyModule returns a key module with no combo yet (validation blocks the
+// run until one is recorded).
+func NewKeyModule() Module {
+	m := NewModule()
+	m.Kind = KindKey
+	m.Target = Target{Kind: TargetCursor}
+	return m
+}
+
 // NewProfile builds the first-run / new-profile template: no modules, one pass,
 // and the given display snapshot.
 func NewProfile(name string, display Display, defaultMaxRuntimeSec int) *Profile {

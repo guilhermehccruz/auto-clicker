@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from "react";
+import { useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { ButtonName, Issue, Module, Target } from "../api/types";
@@ -50,6 +50,7 @@ export function ModuleCard({
   };
 
   const setTarget = (t: Target) => onUpdate({ target: t });
+  const keyMode = m.kind === "key";
 
   // Clicking the card body expands it for editing; interactive controls and the
   // menu are excluded so they keep working.
@@ -149,26 +150,32 @@ export function ModuleCard({
 
       {expanded && (
         <div className="mt-3 flex flex-col gap-2 border-t border-neutral-700 pt-3">
-          <TargetEditor target={m.target} disabled={locked} onChange={setTarget} onPick={onPick} />
+          {keyMode ? (
+            <KeyComboInput value={m.keys ?? ""} disabled={locked} onChange={(keys) => onUpdate({ keys })} />
+          ) : (
+            <TargetEditor target={m.target} disabled={locked} onChange={setTarget} onPick={onPick} />
+          )}
 
           <div className="flex flex-wrap items-center gap-3 text-[12px] text-neutral-400">
-            <div className="flex items-center gap-1.5">
-              button
-              <Select
-                ariaLabel="Mouse button"
-                value={m.button}
-                options={BUTTONS}
-                disabled={locked}
-                onChange={(button) => onUpdate({ button })}
-              />
-            </div>
+            {!keyMode && (
+              <div className="flex items-center gap-1.5">
+                button
+                <Select
+                  ariaLabel="Mouse button"
+                  value={m.button}
+                  options={BUTTONS}
+                  disabled={locked}
+                  onChange={(button) => onUpdate({ button })}
+                />
+              </div>
+            )}
             <NumberField label="count" value={m.count} min={1} max={1000} disabled={locked} onChange={(v) => onUpdate({ count: v })} />
             <NumberField label="delay" value={m.delayAfter} min={0} max={3600000} unit="ms" disabled={locked} onChange={(v) => onUpdate({ delayAfter: v })} />
-            {m.button !== "none" && (
+            {(keyMode || m.button !== "none") && (
               <NumberField label="hold" value={m.holdMs} min={0} max={1000} unit="ms" disabled={locked} onChange={(v) => onUpdate({ holdMs: v })} />
             )}
           </div>
-          {m.button !== "none" && m.holdMs < 5 && (
+          {(keyMode || m.button !== "none") && m.holdMs < 5 && (
             <p className="text-[11px] text-amber-400">
               Hold under 5 ms may be ignored by some targets; the period is hold + delay.
             </p>
@@ -177,6 +184,77 @@ export function ModuleCard({
       )}
     </li>
   );
+}
+
+function KeyComboInput({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  disabled: boolean;
+  onChange: (keys: string) => void;
+}) {
+  const [recording, setRecording] = useState(false);
+  return (
+    <label className="flex items-center gap-2 text-[12px] text-neutral-400">
+      keys
+      <input
+        value={value}
+        readOnly
+        disabled={disabled}
+        placeholder="click and press a combo"
+        onFocus={() => setRecording(true)}
+        onBlur={() => setRecording(false)}
+        onKeyDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.key === "Escape") {
+            e.currentTarget.blur();
+            return;
+          }
+          const mods: string[] = [];
+          if (e.ctrlKey) mods.push("ctrl");
+          if (e.shiftKey) mods.push("shift");
+          if (e.altKey) mods.push("alt");
+          if (e.metaKey) mods.push("cmd");
+          const key = comboKeyName(e);
+          if (!key) return;
+          onChange([...mods, key].join("+"));
+        }}
+        className="mono w-56 rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-neutral-100 disabled:opacity-50"
+      />
+      <button
+        type="button"
+        onClick={() => onChange("")}
+        disabled={disabled}
+        className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] enabled:hover:bg-neutral-800 disabled:opacity-40"
+      >
+        clear
+      </button>
+      <span className="text-[11px] text-neutral-500">
+        {recording ? "press the combo…" : "focus and press"}
+      </span>
+    </label>
+  );
+}
+
+// comboKeyName maps a keydown to the robotgo key name used by the backend.
+function comboKeyName(e: ReactKeyboardEvent<HTMLInputElement>): string | null {
+  const named: Record<string, string> = {
+    " ": "space", Escape: "esc", ArrowUp: "up", ArrowDown: "down",
+    ArrowLeft: "left", ArrowRight: "right", Enter: "enter", Tab: "tab",
+    Backspace: "backspace", Delete: "delete", Insert: "insert", Home: "home",
+    End: "end", PageUp: "pageup", PageDown: "pagedown", CapsLock: "capslock",
+  };
+  const n = named[e.key];
+  if (n) return n;
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(e.key)) return e.key.toLowerCase();
+  if (e.key.length === 1) {
+    const c = e.key.toLowerCase();
+    if (/^[a-z0-9]$/.test(c) || "`-=[]\\;',./".includes(c)) return c;
+  }
+  return null;
 }
 
 function NumberField({

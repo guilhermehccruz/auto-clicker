@@ -335,13 +335,14 @@ var (
 	errStopped    = errors.New("run stopped")
 )
 
-// runModule executes one module's clicks. delayAfter is applied after every
-// click — including the last — so it is the single inter-click gap: it spaces
-// consecutive clicks of the module and the gap to the next module/group.
+// runModule executes one module's clicks or key presses. delayAfter is applied
+// after every action — including the last — so it is the single inter-action
+// gap: it spaces consecutive actions and the gap to the next module/group.
 func (e *Engine) runModule(ctx context.Context, m model.Module) error {
-	moveOnly := m.Button == model.ButtonNone
+	keyMode := m.Kind == model.KindKey
+	moveOnly := !keyMode && m.Button == model.ButtonNone
 	var btn input.Button
-	if !moveOnly {
+	if !keyMode && !moveOnly {
 		var err error
 		btn, err = input.ParseButton(m.Button)
 		if err != nil {
@@ -365,26 +366,32 @@ func (e *Engine) runModule(ctx context.Context, m model.Module) error {
 		e.emit(false)
 
 		hold := time.Duration(m.HoldMs) * time.Millisecond
-		switch {
-		case moveOnly:
-			// "Move only": no button event. Meaningless for a cursor target
-			// (validation warns), so only absolute targets do anything.
-			if m.Target.Kind == model.TargetAbsolute {
-				if err := e.drv.Move(m.Target.X, m.Target.Y); err != nil {
+		if keyMode {
+			if err := e.drv.KeyTap(m.Keys, hold); err != nil {
+				return wrapInjection(err)
+			}
+		} else {
+			switch {
+			case moveOnly:
+				// "Move only": no button event. Meaningless for a cursor target
+				// (validation warns), so only absolute targets do anything.
+				if m.Target.Kind == model.TargetAbsolute {
+					if err := e.drv.Move(m.Target.X, m.Target.Y); err != nil {
+						return wrapInjection(err)
+					}
+				}
+			case m.Target.Kind == model.TargetAbsolute:
+				if err := e.drv.ClickAt(m.Target.X, m.Target.Y, btn, hold); err != nil {
+					return wrapInjection(err)
+				}
+			default:
+				if err := e.drv.ClickHere(btn, hold); err != nil {
 					return wrapInjection(err)
 				}
 			}
-		case m.Target.Kind == model.TargetAbsolute:
-			if err := e.drv.ClickAt(m.Target.X, m.Target.Y, btn, hold); err != nil {
-				return wrapInjection(err)
-			}
-		default:
-			if err := e.drv.ClickHere(btn, hold); err != nil {
-				return wrapInjection(err)
-			}
 		}
 		e.mu.Lock()
-		if !moveOnly {
+		if keyMode || !moveOnly {
 			e.clicks++
 		}
 		e.active += hold
