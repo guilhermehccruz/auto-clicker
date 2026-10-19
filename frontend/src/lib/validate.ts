@@ -42,15 +42,21 @@ export function validateProfile(p: Profile, current: Display): Issue[] {
       if (!validKeyCombo(m.keys)) {
         issues.push({ level: "blocking", moduleId: m.id, field: "keys", message: `${name}: record a key combo` });
       }
-      return;
-    }
-
-    if (m.target.kind === "absolute") {
+    } else if (m.target.kind === "absolute") {
       const { x, y } = m.target;
       if (effectiveEnabled && (x === undefined || y === undefined)) {
         issues.push({ level: "blocking", moduleId: m.id, field: "target", message: `${name}: absolute target has no coordinates` });
       } else if (effectiveEnabled && current.width > 0 && (x! < 0 || y! < 0 || x! >= current.width || y! >= current.height)) {
         issues.push({ level: "warning", moduleId: m.id, field: "target", message: `${name}: (${x}, ${y}) is outside the current desktop` });
+      }
+    }
+
+    if (m.holdUntilStop) {
+      if (m.count !== 1) {
+        issues.push({ level: "blocking", moduleId: m.id, field: "holdUntilStop", message: `${name}: hold requires count 1` });
+      }
+      if (m.kind !== "key" && m.button === "none") {
+        issues.push({ level: "blocking", moduleId: m.id, field: "holdUntilStop", message: `${name}: move-only cannot hold` });
       }
     }
   };
@@ -65,6 +71,31 @@ export function validateProfile(p: Profile, current: Display): Issue[] {
       issues.push({ level: "blocking", field: "groups.delayAfter", message: `${name}: delay after must be 0–3600000 ms` });
     }
     for (const m of g.modules) checkModule(m, g.enabled && m.enabled);
+  }
+
+  // Hold rules: at most one, last enabled action, loop once.
+  const holds: Module[] = [];
+  let lastId = "";
+  const collect = (list: Module[]) => {
+    for (const m of list) {
+      if (!m.enabled) continue;
+      lastId = m.id;
+      if (m.holdUntilStop) holds.push(m);
+    }
+  };
+  collect(modules);
+  for (const g of groups) if (g.enabled) collect(g.modules);
+  if (holds.length > 1) {
+    issues.push({ level: "blocking", field: "holdUntilStop", message: "Only one hold module is allowed" });
+  }
+  if (holds.length === 1) {
+    const hold = holds[0];
+    if (lastId !== hold.id) {
+      issues.push({ level: "blocking", moduleId: hold.id, field: "holdUntilStop", message: `${hold.name || summary(hold)}: hold must be the last enabled module` });
+    }
+    if (p.loop.mode !== "once") {
+      issues.push({ level: "blocking", moduleId: hold.id, field: "holdUntilStop", message: `${hold.name || summary(hold)}: hold requires loop mode once` });
+    }
   }
 
   if (current.width > 0 && p.display.width > 0 && (p.display.width !== current.width || p.display.height !== current.height)) {

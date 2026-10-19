@@ -114,6 +114,14 @@ func Validate(p *Profile, current Desktop) []Issue {
 		default:
 			add(Blocking, m.ID, "kind", "%s: unknown kind %q", label, m.Kind)
 		}
+		if m.HoldUntilStop {
+			if m.Count != 1 {
+				add(Blocking, m.ID, "holdUntilStop", "%s: hold requires count 1", label)
+			}
+			if m.Kind != KindKey && m.Button == ButtonNone {
+				add(Blocking, m.ID, "holdUntilStop", "%s: move-only cannot hold", label)
+			}
+		}
 		if len(m.Name) > MaxNameLen {
 			add(Warning, m.ID, "name", "%s: label is longer than %d characters", label, MaxNameLen)
 		}
@@ -145,6 +153,39 @@ func Validate(p *Profile, current Desktop) []Issue {
 		}
 		for _, m := range g.Modules {
 			checkModule(m, g.Enabled && m.Enabled)
+		}
+	}
+
+	// Hold rules: at most one, as the last enabled action, with loop "once".
+	var holds []Module
+	var last Module
+	hasLast := false
+	collect := func(list []Module) {
+		for _, m := range list {
+			if !m.Enabled {
+				continue
+			}
+			last, hasLast = m, true
+			if m.HoldUntilStop {
+				holds = append(holds, m)
+			}
+		}
+	}
+	collect(p.Modules)
+	for _, g := range p.Groups {
+		if g.Enabled {
+			collect(g.Modules)
+		}
+	}
+	if len(holds) > 1 {
+		add(Blocking, "", "holdUntilStop", "Only one hold module is allowed")
+	}
+	if len(holds) == 1 {
+		if !hasLast || last.ID != holds[0].ID {
+			add(Blocking, holds[0].ID, "holdUntilStop", "%s: hold must be the last enabled module", holds[0].Label())
+		}
+		if p.Loop.Mode != LoopOnce {
+			add(Blocking, holds[0].ID, "holdUntilStop", "%s: hold requires loop mode once", holds[0].Label())
 		}
 	}
 
@@ -188,6 +229,9 @@ func (m Module) Summary() string {
 		if m.DelayAfter > 0 {
 			fmt.Fprintf(&b, " delay %dms", m.DelayAfter)
 		}
+		if m.HoldUntilStop {
+			b.WriteString(" hold until stop")
+		}
 		return b.String()
 	}
 	switch {
@@ -210,6 +254,9 @@ func (m Module) Summary() string {
 	}
 	if m.DelayAfter > 0 {
 		fmt.Fprintf(&b, " delay %dms", m.DelayAfter)
+	}
+	if m.HoldUntilStop {
+		b.WriteString(" hold until stop")
 	}
 	return b.String()
 }

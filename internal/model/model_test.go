@@ -325,6 +325,38 @@ func TestKeyModuleValidation(t *testing.T) {
 	}
 }
 
+func TestHoldValidation(t *testing.T) {
+	p := NewProfile("t", Display{}, DefaultMaxRuntimeSec)
+	hold := NewModule()
+	hold.Target = NewAbsoluteTarget(10, 10)
+	hold.HoldUntilStop = true
+	other := NewModule()
+	other.Target = NewAbsoluteTarget(20, 20)
+
+	p.Modules = []Module{hold}
+	if issues := Validate(p, Desktop{}); HasBlocking(issues) {
+		t.Errorf("valid hold should not block: %v", issues)
+	}
+
+	p.Modules = []Module{hold, other}
+	if !HasBlocking(Validate(p, Desktop{})) {
+		t.Error("hold that is not last must block")
+	}
+
+	p.Modules = []Module{hold}
+	p.Loop = Loop{Mode: LoopCount, Count: 2, LoopDelay: DelayRange{}}
+	if !HasBlocking(Validate(p, Desktop{})) {
+		t.Error("hold with loop count must block")
+	}
+
+	p.Loop = Loop{Mode: LoopOnce, Count: 1, LoopDelay: DelayRange{}}
+	hold.Count = 2
+	p.Modules = []Module{hold}
+	if !HasBlocking(Validate(p, Desktop{})) {
+		t.Error("hold with count > 1 must block")
+	}
+}
+
 func TestSummaryAndLabel(t *testing.T) {
 	m := NewModule()
 	m.Target = NewAbsoluteTarget(940, 520)

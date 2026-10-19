@@ -366,6 +366,30 @@ func (e *Engine) runModule(ctx context.Context, m model.Module) error {
 		e.emit(false)
 
 		hold := time.Duration(m.HoldMs) * time.Millisecond
+		if m.HoldUntilStop {
+			if keyMode {
+				if err := e.drv.KeyDown(m.Keys); err != nil {
+					return wrapInjection(err)
+				}
+			} else {
+				if moveOnly {
+					return errors.New("engine: hold cannot be move-only")
+				}
+				if m.Target.Kind == model.TargetAbsolute {
+					if err := e.drv.Move(m.Target.X, m.Target.Y); err != nil {
+						return wrapInjection(err)
+					}
+				}
+				if err := e.drv.ButtonDown(btn); err != nil {
+					return wrapInjection(err)
+				}
+			}
+			e.mu.Lock()
+			e.clicks++
+			e.mu.Unlock()
+			e.emit(false)
+			return e.holdUntilStop(ctx)
+		}
 		if keyMode {
 			if err := e.drv.KeyTap(m.Keys, hold); err != nil {
 				return wrapInjection(err)
@@ -409,6 +433,23 @@ func (e *Engine) runModule(ctx context.Context, m model.Module) error {
 
 func wrapInjection(err error) error {
 	return errors.Join(errInjection, err)
+}
+
+// holdUntilStop keeps a pressed input down until Stop or the runtime cap. The
+// probe interval is interruptible, so Stop releases immediately; the deferred
+// ReleaseAll does the actual key/button release.
+func (e *Engine) holdUntilStop(ctx context.Context) error {
+	for {
+		if e.maxRuntimeHit() {
+			return errMaxRuntime
+		}
+		if e.shouldStop(ctx) {
+			return errStopped
+		}
+		if err := e.sleep(ctx, 100*time.Millisecond); err != nil {
+			return errStopped
+		}
+	}
 }
 
 // delay gates on pause, then sleeps the full duration. Pausing before a delay

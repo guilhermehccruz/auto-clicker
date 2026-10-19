@@ -127,6 +127,9 @@ type Module struct {
 	// Keys is the key combo for a KindKey module ("ctrl+shift+c"). It is absent
 	// on click modules.
 	Keys string `json:"keys,omitempty"`
+	// HoldUntilStop presses the button/key and keeps it down until Stop. It must
+	// be the last enabled module; validation enforces that and loop "once".
+	HoldUntilStop bool `json:"holdUntilStop,omitempty"`
 	// ClickInterval is deprecated (kept for JSON compatibility): it is folded
 	// into DelayAfter on load and no longer read by the engine.
 	ClickInterval int `json:"clickInterval"`

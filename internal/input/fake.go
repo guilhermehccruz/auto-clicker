@@ -40,8 +40,12 @@ type FakeDriver struct {
 	// ClickHere. Tests use it to advance a fake clock, since the real backends
 	// sleep for the hold internally.
 	OnHold func(time.Duration)
+	// OnKeyDown, when set, is called after a KeyDown is recorded; tests use it
+	// to wait for a hold module to press before sending Stop.
+	OnKeyDown func()
 
 	lastOp string
+	held   []string
 }
 
 // NewFake returns a FakeDriver with a single 1920x1080 display and a readable
@@ -126,6 +130,10 @@ func (f *FakeDriver) KeyDown(combo string) error {
 		return f.InjectErr
 	}
 	f.record(Call{Op: "KeyDown", Keys: combo})
+	f.held = append(f.held, combo)
+	if f.OnKeyDown != nil {
+		f.OnKeyDown()
+	}
 	return nil
 }
 
@@ -134,6 +142,12 @@ func (f *FakeDriver) KeyUp(combo string) error {
 		return f.InjectErr
 	}
 	f.record(Call{Op: "KeyUp", Keys: combo})
+	for i, h := range f.held {
+		if h == combo {
+			f.held = append(f.held[:i], f.held[i+1:]...)
+			break
+		}
+	}
 	return nil
 }
 
@@ -157,6 +171,10 @@ func (f *FakeDriver) Displays() ([]Display, error) {
 
 func (f *FakeDriver) ReleaseAll() error {
 	f.ReleaseAllCount++
+	for i := len(f.held) - 1; i >= 0; i-- {
+		f.record(Call{Op: "KeyUp", Keys: f.held[i]})
+	}
+	f.held = nil
 	f.record(Call{Op: "ReleaseAll"})
 	return nil
 }

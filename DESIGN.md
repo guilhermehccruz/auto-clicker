@@ -289,6 +289,11 @@ Between consecutive passes: `sleep(loopDelay)` (a fixed value or a random `{min,
 window). `loopDelay` is **not** applied after the final pass of a `count` run, and the
 last group's `delayAfter` is skipped because the loop delay already covers the gap.
 
+**Hold (`holdUntilStop`)**: instead of press/sleep/release, the module presses the
+button/key and keeps it down. It is terminal — the run stays active until Stop (or the
+runtime cap), then `ReleaseAll` releases it. Validation therefore requires it to be the
+**last enabled action** and the loop mode to be **`once`**.
+
 ### 3.2 Timing
 
 - The scheduler uses a **monotonic clock with deadline accumulation**:
@@ -338,6 +343,7 @@ last group's `delayAfter` is skipped because the loop delay already covers the g
 | `target` | object | `{"kind":"absolute"}` | — | `absolute {x,y}` or `cursor` ([§3.4](#34-targets)); a new module has no coordinates yet, so validation asks for them |
 | `button` | enum | `left` | `left`/`right`/`middle`/`none` | mouse button; `none` = **move only** (absolute target: moves without clicking; `holdMs` is ignored) |
 | `keys` | string | `""` | combo | key combo for `kind: key`, lowercase robotgo names (`ctrl+shift+c`, `f5`, `space`); validation blocks an empty combo |
+| `holdUntilStop` | bool | `false` | — | press the button/key and **keep it down until Stop**. Must be the last enabled module, with loop `once` ([§3.1](#31-execution-semantics)) |
 | `count` | int | `1` | 1–1000 | actions per pass (burst size, *not* a rate) |
 | `holdMs` | int (ms) | `10` | 0–1000 | how long the button/key stays down per action |
 | `delayAfter` | int (ms) | `50` | 0–3600000 | pause after **every** action (period = `holdMs + delayAfter`; also the gap to the next module) |
@@ -898,6 +904,7 @@ click: label [            ]  target ( ▪ absolute  ○ cursor )  pick ⌖  x [9
 
 key:   label [            ]  keys [ ctrl+c ]  OK / Cancel  (focus, press the combo, confirm)
        count [ 1 ]   delay [ 50 ] ms   hold [ 10 ] ms
+       [ ] Hold until Stop (last enabled step; needs loop once)
 ```
 
 A **key module** is added with `+ Add key` (section footer or group menu) and opens
@@ -967,6 +974,7 @@ Run is blocked, with the reason shown inline next to the offending control:
 |---|---|
 | At least one module is **effectively** enabled (module **and** its group) | blocking |
 | A `kind: key` module has a valid non-empty combo (`ctrl+shift+c`, `f5`, `space`) | blocking |
+| A hold module (`holdUntilStop`) has `count = 1`, is the **last** enabled action, and `loop.mode = once`; only one hold is allowed | blocking |
 | Every enabled `absolute` module has `x` and `y` | blocking |
 | Move-only (`button: none`) with a `cursor` target | warning |
 | Group ids are unique; each group has an id | blocking |
@@ -1386,7 +1394,7 @@ portable archives, mouse and keyboard operation.
 | Docs / lint | ✅ done | DESIGN §10 packaging row fixed; ESLint wired into CI |
 | Keyboard actions (key modules) | ✅ done | `kind: key` presses a combo (target/button unused), same count/hold/delay; capture UI, validation and x11/libei/win injection |
 | App keyboard navigation | open | select and operate modules/groups without the mouse; needs a focus/selection model and a shortcut map |
-| Hold action | open | mouse button **or** key, held until Stop; decided: it must be the last enabled item and the profile loop must be `once` |
+| Hold action | ✅ done | `holdUntilStop`: mouse or key stays down until Stop; validated as the last enabled action with loop `once` |
 | Single app folder | ✅ done | `app.log`, `settings.json`, `runs.jsonl` in the app root; profiles in `profiles/`; startup migration; one Open app folder button |
 | History modal | ✅ done | opened from the sidebar; lists `runs.jsonl` and owns Clear + the retention count |
 | Profile controls on the main screen | ✅ done | max runtime + humanize sit in the bottom bar's second row |
@@ -1564,6 +1572,7 @@ Design choices:
       "button": "left",            // "left" | "right" | "middle" | "none" (none = move only)
       "count": 3,                  // 1..1000
       "holdMs": 10,                // ms, 0..1000, button-down duration
+      "holdUntilStop": false,      // true = keep pressed until Stop (last enabled module, loop once)
       "delayAfter": 250,           // ms, 0..3600000, after EVERY click (period = holdMs + delayAfter)
       "clickInterval": 0           // deprecated; folded into delayAfter on load
     }

@@ -292,6 +292,48 @@ func TestKeyModulePressesKeys(t *testing.T) {
 	}
 }
 
+func TestHoldUntilStopReleases(t *testing.T) {
+	m := model.NewKeyModule()
+	m.Keys = "w"
+	m.HoldUntilStop = true
+
+	drv := input.NewFake()
+	reached := make(chan struct{})
+	drv.OnKeyDown = func() { close(reached) }
+	e := New(drv, WithClock(newAutoClock()))
+	if err := e.Run(onceProfile(m)); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-reached:
+	case <-time.After(2 * time.Second):
+		t.Fatal("hold never pressed the key")
+	}
+	if err := e.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	waitIdle(t, e)
+
+	var down, up bool
+	for _, c := range drv.Calls {
+		switch c.Op {
+		case "KeyDown":
+			down = true
+		case "KeyUp":
+			up = true
+		}
+	}
+	if !down {
+		t.Error("expected a KeyDown")
+	}
+	if !up || drv.ReleaseAllCount == 0 {
+		t.Error("ReleaseAll must release the held key")
+	}
+	if got := e.Status().StopReason; got != ReasonUser {
+		t.Errorf("stop reason = %q, want user", got)
+	}
+}
+
 func TestHumanizeScalesFixedDelays(t *testing.T) {
 	m := model.NewModule()
 	m.Count = 2

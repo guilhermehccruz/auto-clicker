@@ -23,6 +23,7 @@ export interface Module {
   button: ButtonName;
   count: number;
   keys?: string;
+  holdUntilStop?: boolean;
   /** @deprecated folded into delayAfter on load; no longer edited or run. */
   clickInterval?: number;
   holdMs: number;

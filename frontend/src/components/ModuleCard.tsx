@@ -175,6 +175,17 @@ export function ModuleCard({
               <NumberField label="hold" value={m.holdMs} min={0} max={1000} unit="ms" disabled={locked} onChange={(v) => onUpdate({ holdMs: v })} />
             )}
           </div>
+          <label className="flex items-center gap-2 text-[12px] text-neutral-400">
+            <input
+              type="checkbox"
+              checked={m.holdUntilStop ?? false}
+              disabled={locked}
+              onChange={(e) =>
+                onUpdate(e.target.checked ? { holdUntilStop: true, count: 1 } : { holdUntilStop: false })
+              }
+            />
+            Hold until Stop (last enabled step; needs loop <span className="mono">once</span>)
+          </label>
           {(keyMode || m.button !== "none") && m.holdMs < 5 && (
             <p className="text-[11px] text-amber-400">
               Hold under 5 ms may be ignored by some targets; the period is hold + delay.

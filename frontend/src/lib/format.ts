@@ -5,6 +5,7 @@ export function summary(m: Module): string {
   if (m.kind === "key") {
     let out = `${m.keys || "(no keys)"} ×${m.count} hold ${m.holdMs}ms`;
     if (m.delayAfter > 0) out += ` delay ${m.delayAfter}ms`;
+    if (m.holdUntilStop) out += " hold until stop";
     return out;
   }
   const target =
@@ -19,6 +20,7 @@ export function summary(m: Module): string {
   let out = `${target} ${m.button} ×${m.count}`;
   out += ` hold ${m.holdMs}ms`;
   if (m.delayAfter > 0) out += ` delay ${m.delayAfter}ms`;
+  if (m.holdUntilStop) out += " hold until stop";
   return out;
 }
 
