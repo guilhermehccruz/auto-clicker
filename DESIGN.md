@@ -1350,8 +1350,8 @@ GTK4/WebKitGTK-6.0, so the runtime deps match the platform scope in
 
 ### Phase 2 — polish
 
-Hotkey rebinding in Settings; theme (light/system); run history. Each is optional and
-independent — see the backlog below.
+The remaining work is the backlog below. The product shape is stable: one dark theme,
+portable archives, mouse and keyboard operation.
 
 ### Backlog (living list)
 
@@ -1364,10 +1364,20 @@ independent — see the backlog below.
 | Run history | ✅ done | append-only `runs.jsonl`, capped by a Settings count (`runHistoryLimit`) |
 | Delay humanization | ✅ done | profile `humanize` scales every fixed delay by ±25% |
 | Docs / lint | ✅ done | DESIGN §10 packaging row fixed; ESLint wired into CI |
+| Keyboard-only operation | open | select and operate modules/groups without the mouse; needs a focus/selection model and a shortcut map |
+| Hold action | open | press and keep a key or mouse button down until Stop. A hold blocks the rest of the pipeline, so decide whether it must be the **last** active item |
+| Single app folder | open | `Documents/auto-clicker/` holds `app.log`, `settings.json`, `runs.jsonl`; profiles move to `profiles/`; one **Open app folder** button; migrate old files on startup |
+| History modal | open | move the run history out of Settings into its own modal; **Clear** lives there |
+| Profile controls on the main screen | open | move max runtime + humanize next to the loop controls, in two tidy rows; Settings keeps app-level items |
+| Remove corner failsafe | planned | drop `mouseToCornerStops` from model, engine and UI (closes open question 1) |
+| Light theme | **dropped** | the dark theme is the only theme |
 
 Removed from the backlog (decided / validated): mixed-DPI, fullscreen overlay,
 `ClickHere` at runtime, `XGrabKey`, portal consent, the manual release matrix, Windows
-runtime, import/export, and packaged installers.
+runtime, import/export, packaged installers, update signing.
+
+**Process:** pushes are manual. The agent never runs `git push`; it commits locally and
+the user pushes.
 
 ### Deferred / maybe never
 `relativeToCursor` and `windowRelative` targets; scroll and drag (down → move → up)
@@ -1483,12 +1493,9 @@ Design choices:
 
 ## 12. Open Questions
 
-1. **Corner failsafe threshold and default.** Shipped in v1, default **off**, 8 px, 30 Hz.
-   Should it default **on** in fallback-free world? Argument for on: it is the only
-   "physical" stop gesture, and a user whose hotkeys failed has nothing else. Argument for
-   off: with `cursor` modules the user's mouse is often *deliberately* near where they
-   click, and a corner is easy to hit by accident. Current call: off, revisit after real
-   usage.
+1. **Corner failsafe.** Dropped: the feature is being removed from the profile (backlog).
+   Stopping remains the global hotkey, the in-window shortcuts and the runtime cap; there
+   is no "drag the pointer into a corner" gesture.
 2. **`delayAfter` humanization.** Resolved without a new range field: the profile has a
    `humanize` toggle that draws every fixed delay in ±25% of its value ([§3.2](#32-timing)).
    Fixed per-click, per-group and per-pass delays all become irregular; explicit
