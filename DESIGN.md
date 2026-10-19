@@ -1435,7 +1435,7 @@ path. `wails3 build GOOS=linux` is the explicit Linux form.
 | `version` | `ubuntu-latest` | resolve the release tag: a pushed tag is used verbatim (`v1.2.3`); a branch/dispatch build gets `v0.1.<run_number>` |
 | `build-linux` | `ubuntu-latest` | install `build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev` → setup Go + Node → `wails3 build` (`GOOS=linux`) → upload artifact |
 | `build-windows` | `ubuntu-latest` | cross-compile `wails3 build GOOS=windows` with `CGO_ENABLED=0` — possible *because* the robotgo backends are pure Go and Wails needs no CGO on Windows → upload artifact |
-| `package` | `ubuntu-latest` | needs both → name them `auto-clicker_<version>_linux_amd64.tar.gz` and `auto-clicker_<version>_windows_amd64.zip` (binary + short README) → `softprops/action-gh-release` **published** (`draft: false`, `make_latest: true`) |
+| `package` | `ubuntu-latest` | needs both → name them `auto-clicker_<version>_linux_amd64.tar.gz` and `auto-clicker_<version>_windows_amd64.zip` (binary only, one top-level entry) plus a `checksums.txt` sidecar → `softprops/action-gh-release` **published** (`draft: false`, `make_latest: true`) |
 
 Design choices:
 - **Publish directly.** Every push to `main` builds both OS binaries and publishes a
