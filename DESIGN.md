@@ -837,9 +837,11 @@ Interaction rules:
   toggles it**, mirroring how clicking a module card expands it (interactive controls
   excluded); **double-clicking the group name renames it**. The name text is a rename-only
   zone sized to its content (no delay); the header's free space toggles.
-- **Bottom bar** — loop-mode selector plus its parameters (enabled only while idle):
-  `passes` for `count`, and a `loop delay min–max` pair (ms) for `count`/`forever`; live
-  telemetry, and Run/Stop/Pause mirroring the hotkeys (labeled with their key).
+- **Bottom bar** — two rows. Row 1: loop-mode selector plus its parameters (enabled only
+  while idle) — `passes` for `count`, and a `loop delay min–max` pair (ms) for
+  `count`/`forever` — live telemetry, and Run/Stop/Pause mirroring the hotkeys (labeled
+  with their key). Row 2 (**this profile**): `max runtime` (minutes, `0` = unlimited) and
+  the **Humanize delays** toggle ([§3.2](#32-timing)); disabled when no profile is open.
 
 Drag-and-drop uses `@dnd-kit` with a visible drop indicator line, autoscroll near the
 edges, and **keyboard-accessible reordering** (lift with Space, move with arrows, drop
@@ -907,8 +909,6 @@ after the fact. That is why the hotkey can safely be a silent no-op.
 | Group | Contents |
 |---|---|
 | Hotkeys | Editable **Run / Stop** and **Pause / Resume** triggers (canonicalized on Apply; the portal re-prompts consent), the active source (`Portal (KDE)`, `X11 grab`, `Windows RegisterHotKey`, or ⚠ unavailable), plus the **"Enable native Wayland input"** action when the app is on the `x11` fallback and `libei` is available ([§2.2](#22-backend-selection)). |
-| Safety (per profile) | Max runtime for the **open profile** (`failsafe.maxRuntimeSec`, minutes, `0` = unlimited; new profiles seeded from `defaultMaxRuntimeSec`, default 60). This edits the profile, not a global — the cap travels with the file ([§3.10](#310-app-settings-schema)). The whole group is disabled when no profile is open. |
-| Timing (per profile) | **Humanize delays** toggle: when on, every fixed delay is drawn in ±25% of its value ([§3.2](#32-timing)). |
 | Profiles | Resolved folder path, `Open folder`, `Change…` |
 | Advanced | `defaultMaxRuntimeSec` (seed for new profiles); resolved log folder + `Open log folder` |
 | Updates | Current version, a **Check for updates** button (manual trigger) and the Update action when a newer release is found ([§5.9](#59-self-update)) |
@@ -1358,7 +1358,7 @@ portable archives, mouse and keyboard operation.
 | Hold action | open | press and keep a key or mouse button down until Stop. A hold blocks the rest of the pipeline, so decide whether it must be the **last** active item |
 | Single app folder | open | `Documents/auto-clicker/` holds `app.log`, `settings.json`, `runs.jsonl`; profiles move to `profiles/`; one **Open app folder** button; migrate old files on startup |
 | History modal | ✅ done | opened from the sidebar; lists `runs.jsonl` and owns Clear + the retention count |
-| Profile controls on the main screen | open | move max runtime + humanize next to the loop controls, in two tidy rows; Settings keeps app-level items |
+| Profile controls on the main screen | ✅ done | max runtime + humanize sit in the bottom bar's second row |
 | Light theme | **dropped** | the dark theme is the only theme |
 
 Removed from the backlog (decided / validated): mixed-DPI, fullscreen overlay,

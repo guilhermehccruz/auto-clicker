@@ -1,24 +1,19 @@
 import { useEffect, useState } from "react";
 import type {
   Diagnostics,
-  Failsafe,
-  Profile,
   Settings,
   UpdateInfo,
 } from "../api/types";
 import { numberInput } from "../lib/format";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
 
-// SettingsDialog: hotkeys (read-only in v1), safety for the open profile,
-// profiles folder, advanced, updates, run history, diagnostics (DESIGN §5.5).
+// SettingsDialog: hotkeys, profiles folder, advanced, updates, diagnostics
+// (DESIGN §5.5). Profile-level controls live in the bottom bar.
 export function SettingsDialog({
   settings,
   diagnostics,
-  profile,
   updating,
   onSave,
-  onChangeFailsafe,
-  onChangeHumanize,
   onOpenFolder,
   onOpenLog,
   onCheckUpdate,
@@ -28,11 +23,8 @@ export function SettingsDialog({
 }: {
   settings: Settings;
   diagnostics: Diagnostics | null;
-  profile: Profile | null;
   updating: boolean;
   onSave: (s: Settings) => void;
-  onChangeFailsafe: (f: Failsafe) => void;
-  onChangeHumanize: (v: boolean) => void;
   onOpenFolder: () => void;
   onOpenLog: () => void;
   onCheckUpdate: () => Promise<UpdateInfo>;
@@ -40,7 +32,6 @@ export function SettingsDialog({
   onSetHotkeys: (run: string, pause: string) => Promise<void>;
   onClose: () => void;
 }) {
-  const failsafe = profile?.failsafe;
 
   // Editable global hotkeys.
   const [runKey, setRunKey] = useState(settings.hotkeys.run);
@@ -128,42 +119,6 @@ export function SettingsDialog({
               Source: {diagnostics?.hotkeySource ?? "—"}. Rebinding re-prompts the portal consent.
             </p>
           </div>
-        </section>
-
-        <section className="mb-4">
-          <h3 className="mb-1 text-[12px] uppercase tracking-wide text-neutral-500">Safety (this profile)</h3>
-          {failsafe ? (
-            <div className="flex flex-col gap-2 text-[12px] text-neutral-300">
-              <label className="flex items-center gap-2">
-                Max runtime (minutes, 0 = unlimited)
-                <input
-                  type="number"
-                  min={0}
-                  value={Math.round(failsafe.maxRuntimeSec / 60)}
-                  onChange={(e) => onChangeFailsafe({ ...failsafe, maxRuntimeSec: numberInput(e) * 60 })}
-                  className="mono w-20 rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5"
-                />
-              </label>
-            </div>
-          ) : (
-            <p className="text-[12px] text-neutral-500">No profile open.</p>
-          )}
-        </section>
-
-        <section className="mb-4">
-          <h3 className="mb-1 text-[12px] uppercase tracking-wide text-neutral-500">Timing (this profile)</h3>
-          {profile ? (
-            <label className="flex items-center gap-2 text-[12px] text-neutral-300">
-              <input
-                type="checkbox"
-                checked={profile.humanize}
-                onChange={(e) => onChangeHumanize(e.target.checked)}
-              />
-              Humanize delays (randomize every fixed delay by ±25%)
-            </label>
-          ) : (
-            <p className="text-[12px] text-neutral-500">No profile open.</p>
-          )}
         </section>
 
         <section className="mb-4">

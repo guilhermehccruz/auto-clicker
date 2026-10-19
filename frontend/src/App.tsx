@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createApi } from "./api/bindings";
-import type { Failsafe, Module, UpdateInfo } from "./api/types";
+import type { Module, UpdateInfo } from "./api/types";
 import { BottomBar } from "./components/BottomBar";
 import { EmptyState } from "./components/EmptyState";
 import { ModuleList } from "./components/ModuleList";
@@ -325,6 +325,9 @@ export default function App() {
       <BottomBar
         loop={profile?.loop ?? { mode: "once", count: 1, loopDelay: { min: 250, max: 250 } }}
         onLoopChange={(loop) => profiles.update((p) => ({ ...p, loop }))}
+        profile={profile}
+        onChangeMaxRuntime={(sec) => profiles.update((p) => ({ ...p, failsafe: { ...p.failsafe, maxRuntimeSec: sec } }))}
+        onChangeHumanize={(v) => profiles.update((p) => ({ ...p, humanize: v }))}
         locked={locked}
         progress={runner.progress}
         canRun={canRun}
@@ -344,11 +347,8 @@ export default function App() {
         <SettingsDialog
           settings={settings}
           diagnostics={diagnostics}
-          profile={profile}
           updating={updating}
           onSave={(s) => void saveSettings(s)}
-          onChangeFailsafe={(f: Failsafe) => profiles.update((p) => ({ ...p, failsafe: f }))}
-          onChangeHumanize={(v: boolean) => profiles.update((p) => ({ ...p, humanize: v }))}
           onOpenFolder={() => void api.openProfilesDir()}
           onOpenLog={() => void api.openLogDir()}
           onCheckUpdate={() => api.checkUpdate()}
