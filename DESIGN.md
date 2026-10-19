@@ -1477,10 +1477,10 @@ path. `wails3 build GOOS=linux` is the explicit Linux form.
 
 | Job | Runner | Steps |
 |---|---|---|
-| `version` | `ubuntu-latest` | resolve the release tag: a pushed tag is used verbatim (`v1.2.3`); a branch/dispatch build gets `v0.1.<run_number>` |
-| `build-linux` | `ubuntu-latest` | install `build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev` → setup Go + Node → `wails3 build` (`GOOS=linux`) → upload artifact |
-| `build-windows` | `ubuntu-latest` | cross-compile `wails3 build GOOS=windows` with `CGO_ENABLED=0` — possible *because* the robotgo backends are pure Go and Wails needs no CGO on Windows → upload artifact |
-| `package` | `ubuntu-latest` | needs both → name them `auto-clicker_<version>_linux_amd64.tar.gz` and `auto-clicker_<version>_windows_amd64.zip` (binary only, one top-level entry) plus a `checksums.txt` sidecar → `softprops/action-gh-release` **published** (`draft: false`, `make_latest: true`) |
+| `version` | `ubuntu-24.04` | resolve the release tag: a pushed tag is used verbatim (`v1.2.3`); a branch/dispatch build gets `v0.1.<run_number>` |
+| `build-linux` | `ubuntu-24.04` | install `build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev` → setup Go + Node → `wails3 build` (`GOOS=linux`) → upload artifact |
+| `build-windows` | `ubuntu-24.04` | cross-compile `wails3 build GOOS=windows` with `CGO_ENABLED=0` — possible *because* the robotgo backends are pure Go and Wails needs no CGO on Windows → upload artifact |
+| `package` | `ubuntu-24.04` | needs both → name them `auto-clicker_<version>_linux_amd64.tar.gz` and `auto-clicker_<version>_windows_amd64.zip` (binary only, one top-level entry) plus a `checksums.txt` sidecar → `softprops/action-gh-release` **published** (`draft: false`, `make_latest: true`) |
 
 Design choices:
 - **Publish directly.** Every push to `main` builds both OS binaries and publishes a
@@ -1496,6 +1496,11 @@ Design choices:
 - Both build jobs keep their artifacts even if the other fails, so a Linux failure does
   not hide the Windows binary.
 - `package` depends on both, so the release only appears complete or not at all.
+- **Pinned to Ubuntu 24.04.** `ubuntu-latest` migrates to Ubuntu 26 in October 2026; the
+  release jobs stay on 24.04 so the GTK3/WebKit2GTK-4.1 dev packages are stable.
+- **The Wails CLI install retries.** `go install` occasionally fails while verifying a
+  module against `sum.golang.org` (transient stream errors); the step retries three times
+  before failing.
 - Version is exported as the `VERSION` environment variable. The platform Taskfiles append
   `-X main.version=$VERSION` to `-ldflags` when `VERSION` is set, so the
   About/diagnostics panel reports it and plain local builds keep the `dev` default.

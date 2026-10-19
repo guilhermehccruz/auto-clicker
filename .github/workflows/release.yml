@@ -17,7 +17,7 @@ env:
 jobs:
   version:
     name: Resolve version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.resolve.outputs.version }}
     steps:
@@ -37,7 +37,7 @@ jobs:
   build-linux:
     name: Build Linux
     needs: version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -59,10 +59,19 @@ jobs:
 
       - name: Install Wails CLI
         run: |
+          set -euo pipefail
           # The CLI links the Wails operatingsystem package; -tags gtk3 selects
           # the GTK3/WebKit2GTK-4.1 backend this project targets (the default
           # build expects GTK4/WebKitGTK-6.0).
-          go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+          for attempt in 1 2 3; do
+            echo "go install attempt ${attempt}/3"
+            if go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}; then
+              break
+            fi
+            if [ "${attempt}" -eq 3 ]; then exit 1; fi
+            # sum.golang.org occasionally returns a transient stream error.
+            sleep 5
+          done
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Build
@@ -84,7 +93,7 @@ jobs:
   build-windows:
     name: Build Windows
     needs: version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -109,7 +118,16 @@ jobs:
 
       - name: Install Wails CLI
         run: |
-          go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "go install attempt ${attempt}/3"
+            if go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}; then
+              break
+            fi
+            if [ "${attempt}" -eq 3 ]; then exit 1; fi
+            # sum.golang.org occasionally returns a transient stream error.
+            sleep 5
+          done
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       # Cross-compiled from Linux: the robotgo backends are pure Go and Wails
@@ -136,7 +154,7 @@ jobs:
   package:
     name: Publish release
     needs: [version, build-linux, build-windows]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v4
         with:
