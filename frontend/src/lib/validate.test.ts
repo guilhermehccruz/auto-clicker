@@ -6,7 +6,7 @@ function profile(modules: Profile["modules"]): Profile {
   return {
     schemaVersion: 1, name: "t", display: { width: 1920, height: 1080 },
     loop: { mode: "once", count: 1, loopDelay: { min: 250, max: 250 } },
-    failsafe: { maxRuntimeSec: 3600, mouseToCornerStops: false },
+    failsafe: { maxRuntimeSec: 3600 },
     humanize: false,
     modules,
     groups: [],

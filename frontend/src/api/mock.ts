@@ -39,7 +39,7 @@ export class MockApi implements Api {
       name: "Idle Tycoon",
       display: { width: 5360, height: 1440 },
       loop: { mode: "forever", count: 10, loopDelay: { min: 500, max: 1500 } },
-      failsafe: { maxRuntimeSec: 3600, mouseToCornerStops: false },
+      failsafe: { maxRuntimeSec: 3600 },
       humanize: false,
       groups: [],
       modules: [
@@ -82,7 +82,7 @@ export class MockApi implements Api {
       name: name || "New profile",
       display: { width: 1920, height: 1080 },
       loop: { mode: "once", count: 1, loopDelay: { min: 250, max: 250 } },
-      failsafe: { maxRuntimeSec: this.settings.defaultMaxRuntimeSec, mouseToCornerStops: false },
+      failsafe: { maxRuntimeSec: this.settings.defaultMaxRuntimeSec },
       humanize: false,
       groups: [],
       modules: [],

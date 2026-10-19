@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type {
-  Capabilities,
   Diagnostics,
   Failsafe,
   Profile,
@@ -16,7 +15,6 @@ import { DiagnosticsPanel } from "./DiagnosticsPanel";
 export function SettingsDialog({
   settings,
   diagnostics,
-  capabilities,
   profile,
   updating,
   onSave,
@@ -33,7 +31,6 @@ export function SettingsDialog({
 }: {
   settings: Settings;
   diagnostics: Diagnostics | null;
-  capabilities: Capabilities | null;
   profile: Profile | null;
   updating: boolean;
   onSave: (s: Settings) => void;
@@ -48,7 +45,6 @@ export function SettingsDialog({
   onClearHistory: () => Promise<void>;
   onClose: () => void;
 }) {
-  const canReadCursor = capabilities?.CanReadCursor ?? false;
   const failsafe = profile?.failsafe;
 
   // Editable global hotkeys.
@@ -167,16 +163,6 @@ export function SettingsDialog({
                   onChange={(e) => onChangeFailsafe({ ...failsafe, maxRuntimeSec: numberInput(e) * 60 })}
                   className="mono w-20 rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5"
                 />
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={failsafe.mouseToCornerStops}
-                  disabled={!canReadCursor}
-                  title={canReadCursor ? "" : "needs a cursor read, unavailable with libei"}
-                  onChange={(e) => onChangeFailsafe({ ...failsafe, mouseToCornerStops: e.target.checked })}
-                />
-                Stop when the pointer is dragged into a screen corner
               </label>
             </div>
           ) : (

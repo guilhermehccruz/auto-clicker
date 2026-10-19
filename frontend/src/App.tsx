@@ -44,7 +44,7 @@ export default function App() {
   const api = useMemo(createApi, []);
   const profiles = useProfiles(api);
   const runner = useRunner(api);
-  const { settings, capabilities, diagnostics, save: saveSettings, refreshDiagnostics } = useSettings(api);
+  const { settings, diagnostics, save: saveSettings, refreshDiagnostics } = useSettings(api);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // selected is the last item the user acted on (expanded click or clicked
@@ -340,7 +340,6 @@ export default function App() {
         <SettingsDialog
           settings={settings}
           diagnostics={diagnostics}
-          capabilities={capabilities}
           profile={profile}
           updating={updating}
           onSave={(s) => void saveSettings(s)}

@@ -125,7 +125,7 @@ it directly rather than probing with a dialog (see below).
   *injected* position only. This is *fine* for the core "click at cursor" feature (we
   inject a button event **with no preceding motion**, so we never need to know the
   coordinates) but it breaks anything that must *know* the pointer: the coordinate
-  picker and the corner failsafe, plus cursor telemetry. Those go
+  picker, plus cursor telemetry. Those go
   through a separate, backend-specific `CursorPos()` query path.
 - Screen capture / window helpers return `ErrNotSupported` — irrelevant here (no vision).
 - First run shows a portal consent dialog; the grant is cached (robotgo stores a restore
@@ -463,7 +463,7 @@ portal registration intentionally share the `auto-clicker` id.
   "name": "Idle Tycoon",
   "display": { "width": 5360, "height": 1440 },
   "loop": { "mode": "forever", "count": 10, "loopDelay": { "min": 500, "max": 1500 } },
-  "failsafe": { "maxRuntimeSec": 3600, "mouseToCornerStops": false },
+  "failsafe": { "maxRuntimeSec": 3600 },
   "modules": [
     { "kind": "click", "id": "m1", "enabled": true, "delayAfter": 90,
       "target": { "kind": "absolute", "x": 940, "y": 520 },
@@ -710,8 +710,6 @@ are dropped.
   concurrent injection, ever).
 - Cancellation via `context.Context`. `Stop` sets the stop flag *and* cancels the context,
   which interrupts the interruptible sleeps immediately.
-- A separate 30 Hz goroutine polls `CursorPos()` **only** when the corner failsafe is
-  enabled ([§6](#6-safety)); it is not started otherwise.
 - `ReleaseAll()` runs on every exit path via `defer`, so no code path can leave a button
   held.
 
@@ -907,7 +905,7 @@ after the fact. That is why the hotkey can safely be a silent no-op.
 | Group | Contents |
 |---|---|
 | Hotkeys | Editable **Run / Stop** and **Pause / Resume** triggers (canonicalized on Apply; the portal re-prompts consent), the active source (`Portal (KDE)`, `X11 grab`, `Windows RegisterHotKey`, or ⚠ unavailable), plus the **"Enable native Wayland input"** action when the app is on the `x11` fallback and `libei` is available ([§2.2](#22-backend-selection)). |
-| Safety (per profile) | Max runtime for the **open profile** (`failsafe.maxRuntimeSec`, minutes, `0` = unlimited; new profiles seeded from `defaultMaxRuntimeSec`, default 60). This edits the profile, not a global — the cap travels with the file ([§3.10](#310-app-settings-schema)). Corner failsafe toggle — **disabled with a tooltip when `CursorPos()` is unavailable**. The whole group is disabled when no profile is open. |
+| Safety (per profile) | Max runtime for the **open profile** (`failsafe.maxRuntimeSec`, minutes, `0` = unlimited; new profiles seeded from `defaultMaxRuntimeSec`, default 60). This edits the profile, not a global — the cap travels with the file ([§3.10](#310-app-settings-schema)). The whole group is disabled when no profile is open. |
 | Timing (per profile) | **Humanize delays** toggle: when on, every fixed delay is drawn in ±25% of its value ([§3.2](#32-timing)). |
 | Profiles | Resolved folder path, `Open folder`, `Change…` |
 | Advanced | `defaultMaxRuntimeSec` (seed for new profiles); resolved log folder + `Open log folder` |
@@ -1048,8 +1046,7 @@ nothing opens unless a newer version exists, in which case the header shows a
 | **UI locked while running** | destructive controls are inert, so even a `cursor` module clicking over our own window cannot delete or retarget anything | v1 |
 | Held-input audit | `ReleaseAll()` on every exit path (`defer`), including window close and app quit | v1 |
 | Hotkey failure warning | visible warning at startup when no global source registered | v1 |
-| Mouse-to-corner failsafe | dragging the pointer into a screen corner stops the run | v1, default **off** |
-| Run log | append-only history of runs (start/stop/reason/clicks) | Phase 2 |
+| Run log | append-only `runs.jsonl` history (start/stop/reason/clicks), capped | v1 |
 
 **Single-instance lock** is not optional for an input injector: two instances would
 fight over the same pointer, double-click at different coordinates, and each would have
@@ -1059,14 +1056,6 @@ the whole process lifetime and released by the OS if the process dies, so a stal
 cannot wedge the app. There is no tray to restore, so the second instance starts no
 services, shows "Auto Clicker is already running" and exits
 ([§4.5](#45-startup-and-shutdown)).
-
-**Corner failsafe** is `failsafe.mouseToCornerStops` in the profile, **default off**.
-When enabled, a 30 Hz poller watches `CursorPos()` and stops the run if the pointer is
-within 8 px of a virtual-desktop corner. It ships in v1 but the toggle is **disabled with
-a tooltip when `CursorPos()` is unavailable** (Wayland without a working query path), and
-the profile keeps the stored value so the setting survives a machine change. It matters
-most for `cursor`-target modules, where the user's own mouse activity dictates where the
-clicks land.
 
 **Why the locked UI is a safety feature:** with `cursor` targets the user can
 legitimately click anywhere, including over this app's own window. Because every
@@ -1293,7 +1282,7 @@ human at the consent dialog are marked **pending**. Results are recorded in
    engine must avoid `Click()`, which hardcodes a 10 ms hold.*
 3. **`CursorPos()` on Wayland.** X11 `XQueryPointer` when an XWayland client exists; an
    overlay-derived path otherwise. Determines whether the picker
-   and the corner failsafe work on the primary target platform.
+   and the picker work on the primary target platform.
    *Partial: ✅ the `x11` query path reads the real cursor on this Wayland session
    (returned the true pointer position); `libei.Location()` returns injected-only, as
    documented. The overlay-derived path (no XWayland client) is still open.*
@@ -1369,7 +1358,6 @@ portable archives, mouse and keyboard operation.
 | Single app folder | open | `Documents/auto-clicker/` holds `app.log`, `settings.json`, `runs.jsonl`; profiles move to `profiles/`; one **Open app folder** button; migrate old files on startup |
 | History modal | open | move the run history out of Settings into its own modal; **Clear** lives there |
 | Profile controls on the main screen | open | move max runtime + humanize next to the loop controls, in two tidy rows; Settings keeps app-level items |
-| Remove corner failsafe | planned | drop `mouseToCornerStops` from model, engine and UI (closes open question 1) |
 | Light theme | **dropped** | the dark theme is the only theme |
 
 Removed from the backlog (decided / validated): mixed-DPI, fullscreen overlay,
@@ -1479,23 +1467,23 @@ Design choices:
 | Risk | Impact | Mitigation |
 |---|---|---|
 | `ClickHere` has an implicit motion on libei | `cursor` targets unusable on Wayland | Phase 0.5.1 is blocking; if it fails, ship `cursor` for x11/Windows only and gate it per-capability in the UI |
-| `CursorPos()` unworkable on Wayland | no picker, no corner failsafe | manual coordinate entry + coordinate display in diagnostics; corner failsafe stays capability-gated |
+| `CursorPos()` unworkable on Wayland | no picker | manual coordinate entry + coordinate display in diagnostics |
 | libei cannot report screen geometry / displays | validation, the display warning and per-monitor picking depend on the `x11` fallback | Phase 0.5.6; `CanEnumerateDisplays` gate; manual coordinate entry always available |
 | libei init always prompts (no cached-token probe) | the Wayland upgrade can never be automatic | resolved: token is a plain file, checked before init; explicit action remains the fallback |
 | User declines the libei ScreenCast source | `absolute` targets unreliable on Wayland (relative fallback drifts) | `CanMoveAbsolute` gates the target kind; diagnostics shows stream state; app stays usable on `x11`/`cursor` |
 | Mixed-DPI coordinate mismatch | clicks land on the wrong pixel | Phase 0.5.4; schema has room for a `displays[]` layout snapshot |
 | robotgo `master` pin regresses | build or runtime breakage | exact commit pinned in `go.sum`; `Driver` interface isolates the swap |
 | Wayland overlay cannot cover all monitors | picker limited to one monitor at a time | per-monitor overlay plus origin offset; manual entry always available |
-| Hotkey source unavailable | user cannot stop a run while unfocused | startup warning; in-window shortcuts; max runtime cap; corner failsafe |
+| Hotkey source unavailable | user cannot stop a run while unfocused | startup warning; in-window shortcuts; max runtime cap |
 | Anti-cheat / fullscreen games block injection | feature appears broken | README guidance; diagnostics panel shows backend + geometry |
 
 ---
 
 ## 12. Open Questions
 
-1. **Corner failsafe.** Dropped: the feature is being removed from the profile (backlog).
-   Stopping remains the global hotkey, the in-window shortcuts and the runtime cap; there
-   is no "drag the pointer into a corner" gesture.
+1. **Corner failsafe.** Removed from the profile. Stopping is the global hotkey, the
+   in-window shortcuts and the runtime cap; there is no "drag the pointer into a corner"
+   gesture.
 2. **`delayAfter` humanization.** Resolved without a new range field: the profile has a
    `humanize` toggle that draws every fixed delay in ±25% of its value ([§3.2](#32-timing)).
    Fixed per-click, per-group and per-pass delays all become irregular; explicit
@@ -1530,8 +1518,7 @@ Design choices:
     "loopDelay": { "min": 500, "max": 1500 }      // ms; min == max → fixed delay
   },
   "failsafe": {
-    "maxRuntimeSec": 3600,         // 0 = unlimited
-    "mouseToCornerStops": false    // requires CursorPos; capability-gated in the UI
+    "maxRuntimeSec": 3600          // 0 = unlimited
   },
   "humanize": false,               // true → every fixed delay drawn in ±25%
   "modules": [                     // ungrouped clicks (§3.12)

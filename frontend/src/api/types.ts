@@ -41,7 +41,6 @@ export interface Loop {
 
 export interface Failsafe {
   maxRuntimeSec: number;
-  mouseToCornerStops: boolean;
 }
 
 export interface Display {

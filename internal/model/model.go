@@ -93,8 +93,7 @@ type DelayRange struct {
 
 // Failsafe carries the per-profile safety settings.
 type Failsafe struct {
-	MaxRuntimeSec      int  `json:"maxRuntimeSec"`
-	MouseToCornerStops bool `json:"mouseToCornerStops"`
+	MaxRuntimeSec int `json:"maxRuntimeSec"`
 
 	extras map[string]json.RawMessage
 }
