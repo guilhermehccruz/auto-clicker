@@ -149,10 +149,6 @@ export class WailsApi implements Api {
     await Svc.Service.OpenAppDir();
   }
 
-  async openLogDir(): Promise<void> {
-    await Svc.Service.OpenLogDir();
-  }
-
   async version(): Promise<string> {
     return Svc.Service.Version();
   }

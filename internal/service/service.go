@@ -619,9 +619,6 @@ func (s *Service) ProfilesDir() string { return s.store.Dir }
 // OpenAppDir opens the app folder in the OS file manager.
 func (s *Service) OpenAppDir() error { return store.OpenPath(s.store.Root) }
 
-// OpenLogDir opens the app folder (the log lives there).
-func (s *Service) OpenLogDir() error { return store.OpenPath(s.store.Root) }
-
 // Version returns the embedded app version.
 func (s *Service) Version() string { return s.version }
 

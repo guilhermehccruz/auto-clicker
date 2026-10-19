@@ -15,7 +15,6 @@ export function SettingsDialog({
   updating,
   onSave,
   onOpenFolder,
-  onOpenLog,
   onCheckUpdate,
   onInstallUpdate,
   onSetHotkeys,
@@ -26,7 +25,6 @@ export function SettingsDialog({
   updating: boolean;
   onSave: (s: Settings) => void;
   onOpenFolder: () => void;
-  onOpenLog: () => void;
   onCheckUpdate: () => Promise<UpdateInfo>;
   onInstallUpdate: () => void;
   onSetHotkeys: (run: string, pause: string) => Promise<void>;
@@ -174,7 +172,7 @@ export function SettingsDialog({
           </div>
         </section>
 
-        <DiagnosticsPanel diagnostics={diagnostics} onOpenLog={onOpenLog} />
+        <DiagnosticsPanel diagnostics={diagnostics} />
       </div>
     </div>
   );

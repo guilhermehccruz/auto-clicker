@@ -273,8 +273,6 @@ export class MockApi implements Api {
 
   async openAppDir(): Promise<void> {}
 
-  async openLogDir(): Promise<void> {}
-
   async version(): Promise<string> {
     return "dev";
   }

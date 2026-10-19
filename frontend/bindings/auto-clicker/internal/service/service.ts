@@ -168,13 +168,6 @@ export function OpenAppDir(): $CancellablePromise<void> {
 }
 
 /**
- * OpenLogDir opens the app folder (the log lives there).
- */
-export function OpenLogDir(): $CancellablePromise<void> {
-    return $Call.ByID(1142218816);
-}
-
-/**
  * Pause pauses the run.
  */
 export function Pause(): $CancellablePromise<void> {

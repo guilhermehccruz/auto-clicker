@@ -51,7 +51,6 @@ export interface Api {
   saveSettings(s: Settings): Promise<void>;
   profilesDir(): Promise<string>;
   openAppDir(): Promise<void>;
-  openLogDir(): Promise<void>;
   version(): Promise<string>;
 
   onProgress(cb: (p: Progress) => void): () => void;

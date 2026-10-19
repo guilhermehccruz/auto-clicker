@@ -4,10 +4,8 @@ import type { Diagnostics } from "../api/types";
 // "which backend is it using?" (DESIGN §5.5).
 export function DiagnosticsPanel({
   diagnostics,
-  onOpenLog,
 }: {
   diagnostics: Diagnostics | null;
-  onOpenLog?: () => void;
 }) {
   if (!diagnostics) return null;
   const d = diagnostics;
@@ -34,11 +32,6 @@ export function DiagnosticsPanel({
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-[12px] font-medium uppercase tracking-wide text-neutral-400">Diagnostics</h3>
         <span className="flex gap-2">
-          {onOpenLog && (
-            <button type="button" onClick={onOpenLog} className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] hover:bg-neutral-800">
-              Open log folder
-            </button>
-          )}
           <button type="button" onClick={copy} className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] hover:bg-neutral-800">
             Copy diagnostics
           </button>

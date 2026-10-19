@@ -925,7 +925,7 @@ after the fact. That is why the hotkey can safely be a silent no-op.
 |---|---|
 | Hotkeys | Editable **Run / Stop** and **Pause / Resume** triggers (canonicalized on Apply; the portal re-prompts consent), the active source (`Portal (KDE)`, `X11 grab`, `Windows RegisterHotKey`, or ⚠ unavailable), plus the **"Enable native Wayland input"** action when the app is on the `x11` fallback and `libei` is available ([§2.2](#22-backend-selection)). |
 | App folder | Resolved app folder, **Open app folder** (profiles live in `profiles/` inside it) |
-| Advanced | `defaultMaxRuntimeSec` (seed for new profiles); resolved log folder + `Open log folder` |
+| Advanced | `defaultMaxRuntimeSec` (seed for new profiles) |
 | Updates | Current version, a **Check for updates** button (manual trigger) and the Update action when a newer release is found ([§5.9](#59-self-update)) |
 | Diagnostics | App version, robotgo pin, application id, selected backend (+ fallback reason), `CursorPos` availability, virtual desktop geometry, hotkey registration result, app folder / profiles / log paths, and a `Copy diagnostics` button for bug reports |
 
@@ -940,10 +940,10 @@ Startup problems (lock held, profiles dir unwritable, backend init failure, hotk
 failure) are both logged and surfaced in the UI; an error that prevents the window from
 opening at all is also written to stderr. **The Windows build is a GUI binary
 (`-H windowsgui`) with no console**, so the file log is the only place to see runtime
-output there; Settings → Diagnostics shows the resolved path and an **Open log folder**
-button. `Copy diagnostics` includes the log tail. This
+output there; Settings → Diagnostics shows the resolved path, and the **Open app folder**
+button opens the folder that contains it. `Copy diagnostics` includes the log tail. This
 is the *diagnostic* log, distinct from the append-only per-run history in
-[§6](#6-safety), which remains Phase 2.
+[§6](#6-safety).
 
 ### 5.6 Validation
 
@@ -1346,7 +1346,7 @@ telemetry bar; settings + diagnostics; single-instance lock; global hotkeys.
 | `main.go` + Wails scaffold — bootstrap, bindings, events, Taskfile | ✅ `wails3 build` produces a working Linux binary |
 | `frontend/` — React/TS app (sidebar, DnD list, cards, telemetry, picker, settings, diagnostics) | ✅ typechecks, `vite build` and 10 vitest cases pass; `WailsApi` adapter wired to the generated bindings |
 | **Groups** ([§3.12](#312-groups)) — model/engine gating + UI multi-container DnD | ✅ done, tested (Go + UI) |
-| `internal/logging` — file log + 1 MiB×3 rotation + "Open log folder" | ✅ done |
+| `internal/logging` — file log + 1 MiB×3 rotation | ✅ done |
 | CI workflows (`.github/workflows/ci.yml`, `release.yml`) | ✅ added |
 
 Linux uses Wails' **GTK3/WebKit2GTK-4.1** backend (`-tags gtk3`), not the default
