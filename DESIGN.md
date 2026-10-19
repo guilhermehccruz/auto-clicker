@@ -1412,10 +1412,12 @@ Two jobs. **Go**: install the Linux build deps (below) → `gofmt -l` (must be e
 `go vet -tags gtk3 ./...` → `go build -tags gtk3 ./...` → `go test -tags gtk3 ./...`.
 `main.go` embeds `frontend/dist`, so the job drops a `.gitkeep` placeholder there to
 satisfy the embed without compiling the frontend. **Frontend**: `npm ci` →
-`tsc --noEmit` → `vitest` → `vite build`. Never publishes. The Go build includes
-`main.go`, so the CI runner needs the GTK3/WebKit2GTK-4.1 dev packages even for
-`go test`, and `-tags gtk3` selects the right Wails backend. Linting (`eslint`) is not
-wired up yet — the frontend has no ESLint config/dependency, so CI runs typecheck only.
+`tsc --noEmit` → `eslint .` → `vitest` → `vite build`. Never publishes. The Go build
+includes `main.go`, so the CI runner needs the GTK3/WebKit2GTK-4.1 dev packages even for
+`go test`, and `-tags gtk3` selects the right Wails backend. ESLint runs the classic hooks
+rules (`rules-of-hooks`, `exhaustive-deps`) plus `typescript-eslint` and
+`react-refresh`; the React Compiler rules are off because they flag patterns the app uses
+on purpose.
 
 **Linux build deps** (Ubuntu): `build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev`.
 The project targets Wails' GTK3 backend via `-tags gtk3`; GTK4/WebKitGTK-6.0 is not needed.

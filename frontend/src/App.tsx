@@ -147,6 +147,10 @@ export default function App() {
           snapshotDisplay();
         }
       }),
+    // Subscribe once. The handler reads the live diagnostics via a ref and the
+    // stable profiles.update* callbacks, so re-subscribing every render adds
+    // nothing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [api, profiles.updateModule],
   );
 
