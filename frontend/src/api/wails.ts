@@ -116,6 +116,10 @@ export class WailsApi implements Api {
     await Svc.Service.InstallUpdate();
   }
 
+  async setHotkeys(run: string, pause: string): Promise<Settings> {
+    return (await Svc.Service.SetHotkeys(run, pause)) as unknown as Settings;
+  }
+
   async getRunHistory(): Promise<RunRecord[]> {
     const runs = await Svc.Service.GetRunHistory();
     return (runs ?? []) as unknown as RunRecord[];

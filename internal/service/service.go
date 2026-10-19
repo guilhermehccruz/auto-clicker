@@ -46,9 +46,12 @@ type Options struct {
 	Store     *store.Store
 	Driver    input.Driver
 	Hotkeys   hotkey.Source
-	Version   string
-	Clock     engine.Clock
-	Rng       engine.Rng
+	// NewHotkeys builds a fresh global-shortcut source; used on rebinding
+	// (a closed portal session is not reusable). Defaults to hotkey.New.
+	NewHotkeys func(hotkey.Handler) hotkey.Source
+	Version    string
+	Clock      engine.Clock
+	Rng        engine.Rng
 	// Emitter receives run progress. It is not a bound method so the generated
 	// bindings stay free of function types.
 	Emitter func(engine.Progress)
@@ -93,6 +96,7 @@ type Service struct {
 	settings    store.Settings
 	version     string
 	selected    string
+	newHotkeys  func(hotkey.Handler) hotkey.Source
 
 	pickDone      func(PickResult)
 	focusMain     func()
@@ -170,9 +174,18 @@ func New(opts Options) (*Service, error) {
 		checkUpdate:   opts.CheckUpdate,
 		installUpdate: opts.InstallUpdate,
 	}
+	switch {
+	case opts.Hotkeys != nil:
+		// A fixed source (tests): rebinding reuses it.
+		s.newHotkeys = func(hotkey.Handler) hotkey.Source { return opts.Hotkeys }
+	case opts.NewHotkeys != nil:
+		s.newHotkeys = opts.NewHotkeys
+	default:
+		s.newHotkeys = hotkey.New
+	}
 	hk := opts.Hotkeys
 	if hk == nil {
-		hk = hotkey.New(s.onHotkey)
+		hk = s.newHotkeys(s.onHotkey)
 	}
 	s.hotkeys = hk
 	engineOpts := []engine.Option{engine.WithEmitter(func(p engine.Progress) {
@@ -470,16 +483,59 @@ func (s *Service) Resume() error { return s.engine.Resume() }
 // Status returns the latest progress.
 func (s *Service) Status() engine.Progress { return s.engine.Status() }
 
+// hotkeyBindings returns the configured global shortcuts.
+func (s *Service) hotkeyBindings() []hotkey.Binding {
+	s.mu.Lock()
+	hk := s.settings.Hotkeys
+	s.mu.Unlock()
+	return []hotkey.Binding{
+		{ID: "run", Label: "Run / Stop", Trigger: hk.Run},
+		{ID: "pause", Label: "Pause / Resume", Trigger: hk.Pause},
+	}
+}
+
 // RegisterHotkeys binds the configured global shortcuts. It may block on a
 // portal consent dialog, so callers should run it off the UI thread.
 func (s *Service) RegisterHotkeys() (map[string]string, error) {
 	s.mu.Lock()
-	hk := s.settings.Hotkeys
+	hk := s.hotkeys
 	s.mu.Unlock()
-	return s.hotkeys.Register([]hotkey.Binding{
-		{ID: "run", Label: "Run / Stop", Trigger: hk.Run},
-		{ID: "pause", Label: "Pause / Resume", Trigger: hk.Pause},
-	})
+	return hk.Register(s.hotkeyBindings())
+}
+
+// SetHotkeys canonicalizes, persists and applies new Run/Pause triggers. It
+// rebuilds the source because a portal session is not reusable after Close.
+func (s *Service) SetHotkeys(run, pause string) (store.Settings, error) {
+	cr, err := hotkey.CanonicalTrigger(run)
+	if err != nil {
+		return store.Settings{}, err
+	}
+	cp, err := hotkey.CanonicalTrigger(pause)
+	if err != nil {
+		return store.Settings{}, err
+	}
+	if cr == cp {
+		return store.Settings{}, errors.New("hotkeys: Run and Pause must differ")
+	}
+
+	s.mu.Lock()
+	s.settings.Hotkeys = store.Hotkeys{Run: cr, Pause: cp}
+	st := s.settings
+	old := s.hotkeys
+	s.mu.Unlock()
+	if err := store.SaveSettings(s.settingsDir, &st); err != nil {
+		return st, err
+	}
+
+	hk := s.newHotkeys(s.onHotkey)
+	s.mu.Lock()
+	s.hotkeys = hk
+	s.mu.Unlock()
+	_ = old.Close()
+	if _, err := hk.Register(s.hotkeyBindings()); err != nil {
+		return st, err
+	}
+	return st, nil
 }
 
 // CloseHotkeys releases the global shortcuts.

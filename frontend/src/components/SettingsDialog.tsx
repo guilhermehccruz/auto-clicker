@@ -25,6 +25,7 @@ export function SettingsDialog({
   onOpenLog,
   onCheckUpdate,
   onInstallUpdate,
+  onSetHotkeys,
   onLoadHistory,
   onClearHistory,
   onClose,
@@ -40,12 +41,30 @@ export function SettingsDialog({
   onOpenLog: () => void;
   onCheckUpdate: () => Promise<UpdateInfo>;
   onInstallUpdate: () => void;
+  onSetHotkeys: (run: string, pause: string) => Promise<void>;
   onLoadHistory: () => Promise<RunRecord[]>;
   onClearHistory: () => Promise<void>;
   onClose: () => void;
 }) {
   const canReadCursor = capabilities?.CanReadCursor ?? false;
   const failsafe = profile?.failsafe;
+
+  // Editable global hotkeys.
+  const [runKey, setRunKey] = useState(settings.hotkeys.run);
+  const [pauseKey, setPauseKey] = useState(settings.hotkeys.pause);
+  const [hkError, setHkError] = useState<string | null>(null);
+  const [savingHk, setSavingHk] = useState(false);
+  useEffect(() => {
+    setRunKey(settings.hotkeys.run);
+    setPauseKey(settings.hotkeys.pause);
+  }, [settings.hotkeys.run, settings.hotkeys.pause]);
+  const applyHotkeys = () => {
+    setSavingHk(true);
+    setHkError(null);
+    onSetHotkeys(runKey, pauseKey)
+      .catch((e) => setHkError(String(e)))
+      .finally(() => setSavingHk(false));
+  };
 
   // Manual update check.
   const [checking, setChecking] = useState(false);
@@ -94,13 +113,43 @@ export function SettingsDialog({
 
         <section className="mb-4">
           <h3 className="mb-1 text-[12px] uppercase tracking-wide text-neutral-500">Hotkeys</h3>
-          <ul className="text-[12px] text-neutral-300">
-            <li className="mono">F8 · Run / Stop</li>
-            <li className="mono">F9 · Pause / Resume</li>
-          </ul>
-          <p className="mt-1 text-[11px] text-neutral-500">
-            Source: {diagnostics?.hotkeySource ?? "—"}. Rebinding is planned.
-          </p>
+          <div className="flex flex-col gap-2 text-[12px] text-neutral-300">
+            <label className="flex items-center gap-2">
+              Run / Stop
+              <input
+                value={runKey}
+                onChange={(e) => setRunKey(e.target.value)}
+                spellCheck={false}
+                placeholder="e.g. F8 or CTRL+SHIFT+F8"
+                className="mono w-48 rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-neutral-100"
+              />
+            </label>
+            <label className="flex items-center gap-2">
+              Pause / Resume
+              <input
+                value={pauseKey}
+                onChange={(e) => setPauseKey(e.target.value)}
+                spellCheck={false}
+                placeholder="e.g. F9"
+                className="mono w-48 rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-neutral-100"
+              />
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={applyHotkeys}
+                disabled={savingHk}
+                className="rounded border border-neutral-700 px-2 py-1 enabled:hover:bg-neutral-800 disabled:opacity-50"
+              >
+                {savingHk ? "Applying…" : "Apply"}
+              </button>
+              {hkError && <span className="text-rose-400">{hkError}</span>}
+            </div>
+            <p className="text-[11px] text-neutral-500">
+              Uppercase modifiers, canonical order; e.g. <span className="mono">CTRL+SHIFT+F8</span>.
+              Source: {diagnostics?.hotkeySource ?? "—"}. Rebinding re-prompts the portal consent.
+            </p>
+          </div>
         </section>
 
         <section className="mb-4">

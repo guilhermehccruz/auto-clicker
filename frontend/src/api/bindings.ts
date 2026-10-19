@@ -43,6 +43,7 @@ export interface Api {
   status(): Promise<Progress>;
   checkUpdate(): Promise<UpdateInfo>;
   installUpdate(): Promise<void>;
+  setHotkeys(run: string, pause: string): Promise<Settings>;
   getRunHistory(): Promise<RunRecord[]>;
   clearRunHistory(): Promise<void>;
 

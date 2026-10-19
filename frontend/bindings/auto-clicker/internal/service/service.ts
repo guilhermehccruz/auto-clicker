@@ -225,6 +225,14 @@ export function SaveSettings(st: store$0.Settings): $CancellablePromise<void> {
 }
 
 /**
+ * SetHotkeys canonicalizes, persists and applies new Run/Pause triggers. It
+ * rebuilds the source because a portal session is not reusable after Close.
+ */
+export function SetHotkeys(run: string, pause: string): $CancellablePromise<store$0.Settings> {
+    return $Call.ByID(1950351170, run, pause);
+}
+
+/**
  * StartPick begins a countdown and returns immediately. After PickCountdown the
  * real cursor position is captured and delivered via the PickDone callback
  * (`pick:done`). There is no second window: the countdown is shown inside the

@@ -241,6 +241,11 @@ export class MockApi implements Api {
 
   async installUpdate(): Promise<void> {}
 
+  async setHotkeys(run: string, pause: string): Promise<Settings> {
+    this.settings = { ...this.settings, hotkeys: { run, pause } };
+    return structuredClone(this.settings);
+  }
+
   async getRunHistory(): Promise<RunRecord[]> {
     return [];
   }

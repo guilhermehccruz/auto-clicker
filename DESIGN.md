@@ -565,7 +565,7 @@ Rules:
   prefer app-data storage move profiles without a symlink.
 - **`window`** stores the last *normal* geometry plus the maximized flag, so restoring a
   maximized window still remembers where it was un-maximized.
-- **`hotkeys`** are the *desired* bindings (rebinding is Phase 2, defaults are v1). They
+- **`hotkeys`** are the *desired* bindings (editable in Settings; defaults are v1). They
   use the portal's uppercase-modifier notation ([Appendix B.3](#appendix-b-global-shortcuts-portal-gotchas))
   and are normalized per platform at registration time. Whether registration succeeded is
   runtime-only and is **not** persisted — it is recomputed every launch and shown in
@@ -662,11 +662,11 @@ so the window is the app; minimizing keeps the run alive, closing does not.
 | `F8` | Run / Stop toggle (Stop aborts immediately and releases all inputs) |
 | `F9` | Pause / Resume |
 
-Defaults are chosen to be unlikely to collide with games. Rebinding is a Phase 2
-setting; the hotkey source and whether registration succeeded are shown in the
-diagnostics panel. **If no global source is available the app shows a visible warning at
-startup** rather than a log line, because while running unfocused the hotkeys may be the
-only practical stopper.
+Defaults are chosen to be unlikely to collide with games. Triggers are editable in
+Settings: the value is canonicalized (uppercase modifiers, fixed order) and the source is
+rebuilt, so the GlobalShortcuts portal shows a fresh consent dialog. **If no global source
+is available the app shows a visible warning at startup** rather than a log line, because
+while running unfocused the hotkeys may be the only practical stopper.
 
 ### 4.2 Progress events
 
@@ -902,7 +902,7 @@ after the fact. That is why the hotkey can safely be a silent no-op.
 
 | Group | Contents |
 |---|---|
-| Hotkeys | F8 / F9 listed with the active source (`Portal (KDE)`, `X11 grab`, `Windows RegisterHotKey`, or ⚠ unavailable), plus the **"Enable native Wayland input"** action when the app is on the `x11` fallback and `libei` is available ([§2.2](#22-backend-selection)). Rebinding is Phase 2. |
+| Hotkeys | Editable **Run / Stop** and **Pause / Resume** triggers (canonicalized on Apply; the portal re-prompts consent), the active source (`Portal (KDE)`, `X11 grab`, `Windows RegisterHotKey`, or ⚠ unavailable), plus the **"Enable native Wayland input"** action when the app is on the `x11` fallback and `libei` is available ([§2.2](#22-backend-selection)). |
 | Safety (per profile) | Max runtime for the **open profile** (`failsafe.maxRuntimeSec`, minutes, `0` = unlimited; new profiles seeded from `defaultMaxRuntimeSec`, default 60). This edits the profile, not a global — the cap travels with the file ([§3.10](#310-app-settings-schema)). Corner failsafe toggle — **disabled with a tooltip when `CursorPos()` is unavailable**. The whole group is disabled when no profile is open. |
 | Profiles | Resolved folder path, `Open folder`, `Change…` |
 | Advanced | `defaultMaxRuntimeSec` (seed for new profiles); resolved log folder + `Open log folder` |
@@ -1352,11 +1352,10 @@ Hotkey rebinding in Settings; `delayAfterRange` (humanized per-click pauses); th
 
 | Item | State | Notes |
 |---|---|---|
-| Self-update signing | planned | the GitHub provider ships **checksums only**; signatures (ed25519) need a custom provider plus a CI signing key — see [§12](#12-open-questions) |
 | "Check for updates" in Settings | ✅ done | manual trigger alongside the silent startup check |
 | Update channel | **decided** | every push to `main` publishes a new version; no prerelease/stable split |
 | Tray icon / minimize-to-tray | **dropped** | closing the window keeps stopping the run |
-| Hotkey rebinding | planned | edit the F8/F9 triggers in Settings (portal notation) |
+| Hotkey rebinding | ✅ done | edit the F8/F9 triggers in Settings (portal notation) |
 | Run history | ✅ done | append-only `runs.jsonl`, capped by a Settings count (`runHistoryLimit`) |
 | `delayAfterRange` | open | humanize the per-click delay like `loopDelay` |
 | Docs / lint | open | DESIGN §10 `package` row is stale; ESLint is not configured |
@@ -1500,12 +1499,6 @@ Design choices:
 6. **Name.** Working title `auto-clicker` / "Auto Clicker", application id `auto-clicker`
    ([§2.4](#24-module-path-and-naming)). The app id is fixed now (KDE consent is keyed to
    it); only the human-facing name still needs a confirm before the first release.
-7. **Update signing.** The GitHub provider verifies a `checksums.txt` digest only — it never
-   populates a signature, so `updater.Config.PublicKey` alone changes nothing. Real
-   authenticity needs a custom provider that fetches a published `.sig` and sets
-   `Verification.Signature` (ed25519ph), plus an ed25519 keypair whose private half lives as
-   a CI secret and whose public half is pinned in the binary. Open: is that worth it for a
-   personal project, or is checksum-only (corruption detection) enough?
 
 ---
 

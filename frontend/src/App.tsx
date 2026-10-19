@@ -19,7 +19,7 @@ export default function App() {
   const api = useMemo(createApi, []);
   const profiles = useProfiles(api);
   const runner = useRunner(api);
-  const { settings, capabilities, diagnostics, save: saveSettings } = useSettings(api);
+  const { settings, capabilities, diagnostics, save: saveSettings, refreshDiagnostics } = useSettings(api);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // selected is the last item the user acted on (expanded click or clicked
@@ -187,6 +187,14 @@ export default function App() {
     void api.installUpdate().catch(() => setUpdating(false));
   };
 
+  // setHotkeys applies new global shortcuts (canonicalized and re-registered in
+  // Go) and refreshes the local settings/diagnostics.
+  const setHotkeys = async (run: string, pause: string) => {
+    const updated = await api.setHotkeys(run, pause);
+    await saveSettings(updated);
+    await refreshDiagnostics();
+  };
+
   return (
     <div className="flex h-screen w-screen flex-col">
       <div className="flex min-h-0 flex-1">
@@ -311,6 +319,7 @@ export default function App() {
           onOpenLog={() => void api.openLogDir()}
           onCheckUpdate={() => api.checkUpdate()}
           onInstallUpdate={installUpdate}
+          onSetHotkeys={setHotkeys}
           onLoadHistory={() => api.getRunHistory()}
           onClearHistory={() => api.clearRunHistory()}
           onClose={() => setShowSettings(false)}
