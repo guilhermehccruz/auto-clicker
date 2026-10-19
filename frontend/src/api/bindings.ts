@@ -50,7 +50,7 @@ export interface Api {
   getSettings(): Promise<Settings>;
   saveSettings(s: Settings): Promise<void>;
   profilesDir(): Promise<string>;
-  openProfilesDir(): Promise<void>;
+  openAppDir(): Promise<void>;
   openLogDir(): Promise<void>;
   version(): Promise<string>;
 

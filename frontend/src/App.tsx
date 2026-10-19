@@ -349,7 +349,7 @@ export default function App() {
           diagnostics={diagnostics}
           updating={updating}
           onSave={(s) => void saveSettings(s)}
-          onOpenFolder={() => void api.openProfilesDir()}
+          onOpenFolder={() => void api.openAppDir()}
           onOpenLog={() => void api.openLogDir()}
           onCheckUpdate={() => api.checkUpdate()}
           onInstallUpdate={installUpdate}

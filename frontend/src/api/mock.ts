@@ -138,8 +138,9 @@ export class MockApi implements Api {
       desktopHeight: 1080,
       displays: [{ X: 0, Y: 0, W: 1920, H: 1080, Scale: 1, Primary: true }],
       hotkeySource: "unavailable",
-      profilesDir: this.settings.profilesDir,
-      logDir: "~/.local/state/auto-clicker",
+      appDir: this.settings.profilesDir,
+      profilesDir: `${this.settings.profilesDir}/profiles`,
+      logDir: this.settings.profilesDir,
     };
   }
 
@@ -270,7 +271,7 @@ export class MockApi implements Api {
     return this.settings.profilesDir;
   }
 
-  async openProfilesDir(): Promise<void> {}
+  async openAppDir(): Promise<void> {}
 
   async openLogDir(): Promise<void> {}
 

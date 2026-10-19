@@ -122,12 +122,12 @@ export function SettingsDialog({
         </section>
 
         <section className="mb-4">
-          <h3 className="mb-1 text-[12px] uppercase tracking-wide text-neutral-500">Profiles</h3>
-          <p className="mono mb-2 truncate text-[12px] text-neutral-300" title={settings.profilesDir}>
-            {settings.profilesDir || diagnostics?.profilesDir}
+          <h3 className="mb-1 text-[12px] uppercase tracking-wide text-neutral-500">App folder</h3>
+          <p className="mono mb-2 truncate text-[12px] text-neutral-300" title={diagnostics?.appDir}>
+            {diagnostics?.appDir ?? "…"}
           </p>
           <button type="button" onClick={onOpenFolder} className="rounded border border-neutral-700 px-2 py-1 text-[12px] hover:bg-neutral-800">
-            Open folder
+            Open app folder
           </button>
         </section>
 

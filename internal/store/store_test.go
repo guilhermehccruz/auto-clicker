@@ -235,6 +235,51 @@ func TestCreateNamedSettingsDoesNotClobberSettings(t *testing.T) {
 	}
 }
 
+func TestMigrateLayoutMovesProfiles(t *testing.T) {
+	app := t.TempDir()
+	profiles := filepath.Join(app, "profiles")
+	if err := os.MkdirAll(profiles, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(app, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("wami.json", `{"name":"Wami"}`)
+	write("settings.json", `{}`)
+	write("runs.jsonl", "")
+	// Collision: profiles/ already has this one; the root copy must stay.
+	write("keep.json", `{"name":"Root"}`)
+	if err := os.WriteFile(filepath.Join(profiles, "keep.json"), []byte(`{"name":"Profiles"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := MigrateLayout(app); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(filepath.Join(profiles, "wami.json")); err != nil {
+		t.Errorf("profile not moved: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(app, "wami.json")); !os.IsNotExist(err) {
+		t.Error("root profile copy should be gone")
+	}
+	if _, err := os.Stat(filepath.Join(app, "settings.json")); err != nil {
+		t.Error("settings.json must stay in the app root")
+	}
+	if _, err := os.Stat(filepath.Join(app, "runs.jsonl")); err != nil {
+		t.Error("runs.jsonl must stay in the app root")
+	}
+	if _, err := os.Stat(filepath.Join(app, "keep.json")); err != nil {
+		t.Error("collision: root copy should be left untouched")
+	}
+	got, err := os.ReadFile(filepath.Join(profiles, "keep.json"))
+	if err != nil || string(got) != `{"name":"Profiles"}` {
+		t.Errorf("collision: profiles/ copy must win, got %q err %v", got, err)
+	}
+}
+
 func TestSingleInstanceLock(t *testing.T) {
 	dir := t.TempDir()
 	l1, err := AcquireLock(dir)

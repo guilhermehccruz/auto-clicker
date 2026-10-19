@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,9 +40,11 @@ type ProblemFile struct {
 	Error string `json:"error"`
 }
 
-// Store reads and writes profiles in Dir.
+// Store reads and writes profiles in Dir; Root is the app folder that holds
+// settings.json, runs.jsonl and app.log (DESIGN §3.8).
 type Store struct {
-	Dir string
+	Root string
+	Dir  string
 }
 
 // ConfigDir returns the machine-specific config directory.
@@ -51,23 +54,6 @@ func ConfigDir() (string, error) {
 		return "", err
 	}
 	return filepath.Join(base, AppSlug), nil
-}
-
-// StateDir returns the state directory used for logs.
-func StateDir() (string, error) {
-	if runtime.GOOS == "windows" {
-		if d := os.Getenv("LOCALAPPDATA"); d != "" {
-			return filepath.Join(d, AppSlug, "logs"), nil
-		}
-	}
-	if d := os.Getenv("XDG_STATE_HOME"); d != "" {
-		return filepath.Join(d, AppSlug), nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".local", "state", AppSlug), nil
 }
 
 // DocumentsDir resolves the user's Documents folder without hardcoding it.
@@ -89,8 +75,9 @@ func DocumentsDir() (string, error) {
 	return filepath.Join(home, "Documents"), nil
 }
 
-// DefaultProfilesDir is <Documents>/auto-clicker.
-func DefaultProfilesDir() (string, error) {
+// DefaultAppDir is <Documents>/auto-clicker: settings.json, runs.jsonl,
+// app.log and the profiles/ subfolder live here.
+func DefaultAppDir() (string, error) {
 	docs, err := DocumentsDir()
 	if err != nil {
 		return "", err
@@ -98,10 +85,11 @@ func DefaultProfilesDir() (string, error) {
 	return filepath.Join(docs, AppSlug), nil
 }
 
-// New opens a store rooted at dir, creating it if needed.
+// New opens a store rooted at dir with the profiles in dir itself (used by
+// tests and injected stores). Production uses Open.
 func New(dir string) (*Store, error) {
 	if dir == "" {
-		d, err := DefaultProfilesDir()
+		d, err := DefaultAppDir()
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +98,52 @@ func New(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	return &Store{Dir: dir}, nil
+	return &Store{Root: dir, Dir: dir}, nil
+}
+
+// Open opens the app folder with profiles in <appDir>/profiles.
+func Open(appDir string) (*Store, error) {
+	if appDir == "" {
+		d, err := DefaultAppDir()
+		if err != nil {
+			return nil, err
+		}
+		appDir = d
+	}
+	profiles := filepath.Join(appDir, "profiles")
+	if err := os.MkdirAll(profiles, 0o755); err != nil {
+		return nil, err
+	}
+	return &Store{Root: appDir, Dir: profiles}, nil
+}
+
+// MigrateLayout moves profile JSON files from the app root into profiles/.
+// settings.json stays in the root; a file already present in profiles/ wins
+// and the root copy is left untouched (never silently deleted).
+func MigrateLayout(appDir string) error {
+	profiles := filepath.Join(appDir, "profiles")
+	if err := os.MkdirAll(profiles, 0o755); err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(appDir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") || e.Name() == SettingsFile {
+			continue
+		}
+		src := filepath.Join(appDir, e.Name())
+		dst := filepath.Join(profiles, e.Name())
+		if _, err := os.Stat(dst); err == nil {
+			log.Printf("store: migration skipped %s (already in profiles/)", e.Name())
+			continue
+		}
+		if err := os.Rename(src, dst); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) path(id string) string { return filepath.Join(s.Dir, id+".json") }

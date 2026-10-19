@@ -119,6 +119,7 @@ export interface Diagnostics {
   displays: DisplayInfo[];
   hotkeySource: string;
   hotkeyError?: string;
+  appDir: string;
   profilesDir: string;
   logDir: string;
 }

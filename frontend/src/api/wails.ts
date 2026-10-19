@@ -145,8 +145,8 @@ export class WailsApi implements Api {
     return Svc.Service.ProfilesDir();
   }
 
-  async openProfilesDir(): Promise<void> {
-    await Svc.Service.OpenProfilesDir();
+  async openAppDir(): Promise<void> {
+    await Svc.Service.OpenAppDir();
   }
 
   async openLogDir(): Promise<void> {

@@ -28,6 +28,13 @@ import * as store$0 from "../store/models.js";
 import * as $models from "./models.js";
 
 /**
+ * AppDir returns the app folder.
+ */
+export function AppDir(): $CancellablePromise<string> {
+    return $Call.ByID(1716636351);
+}
+
+/**
  * CancelPick abandons the countdown (Esc / cancel button while the app is focused).
  */
 export function CancelPick(): $CancellablePromise<void> {
@@ -154,17 +161,17 @@ export function LoadProfile(id: string): $CancellablePromise<model$0.Profile | n
 }
 
 /**
- * OpenLogDir opens the log folder in the OS file manager.
+ * OpenAppDir opens the app folder in the OS file manager.
  */
-export function OpenLogDir(): $CancellablePromise<void> {
-    return $Call.ByID(1142218816);
+export function OpenAppDir(): $CancellablePromise<void> {
+    return $Call.ByID(4186788355);
 }
 
 /**
- * OpenProfilesDir opens the profiles folder in the OS file manager.
+ * OpenLogDir opens the app folder (the log lives there).
  */
-export function OpenProfilesDir(): $CancellablePromise<void> {
-    return $Call.ByID(711142118);
+export function OpenLogDir(): $CancellablePromise<void> {
+    return $Call.ByID(1142218816);
 }
 
 /**

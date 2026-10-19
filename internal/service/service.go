@@ -16,7 +16,6 @@ import (
 	"auto-clicker/internal/engine"
 	"auto-clicker/internal/hotkey"
 	"auto-clicker/internal/input"
-	"auto-clicker/internal/logging"
 	"auto-clicker/internal/model"
 	"auto-clicker/internal/store"
 )
@@ -39,6 +38,7 @@ type Diagnostics struct {
 	Displays        []input.Display `json:"displays"`
 	HotkeySource    string          `json:"hotkeySource"`
 	HotkeyError     string          `json:"hotkeyError,omitempty"`
+	AppDir          string          `json:"appDir"`
 	ProfilesDir     string          `json:"profilesDir"`
 	LogDir          string          `json:"logDir"`
 }
@@ -46,9 +46,12 @@ type Diagnostics struct {
 // Options configures a Service. Store and Driver are injectable for tests.
 type Options struct {
 	ConfigDir string
-	Store     *store.Store
-	Driver    input.Driver
-	Hotkeys   hotkey.Source
+	// AppDir is the app folder (settings, runs, log, profiles/). Empty resolves
+	// the default. Ignored when Store is injected.
+	AppDir  string
+	Store   *store.Store
+	Driver  input.Driver
+	Hotkeys hotkey.Source
 	// NewHotkeys builds a fresh global-shortcut source; used on rebinding
 	// (a closed portal session is not reusable). Defaults to hotkey.New.
 	NewHotkeys func(hotkey.Handler) hotkey.Source
@@ -127,31 +130,33 @@ func New(opts Options) (*Service, error) {
 		configDir = d
 	}
 
-	// Settings live next to the profiles (DESIGN §3.8). With an injected store
-	// that is its dir; otherwise the default profiles dir. configDir is only a
-	// legacy fallback so an existing install migrates its settings.
+	// Everything lives in the app folder (DESIGN §3.8): settings.json, runs.jsonl,
+	// app.log and profiles/. With an injected store its Root is used, keeping
+	// tests isolated. configDir is only the legacy settings fallback.
+	st := opts.Store
 	settingsDir := ""
-	if opts.Store != nil {
-		settingsDir = opts.Store.Dir
+	if st != nil {
+		settingsDir = st.Root
 	} else {
-		d, err := store.DefaultProfilesDir()
-		if err != nil {
-			return nil, err
+		appDir := opts.AppDir
+		if appDir == "" {
+			d, err := store.DefaultAppDir()
+			if err != nil {
+				return nil, err
+			}
+			appDir = d
 		}
-		settingsDir = d
+		if err := store.MigrateLayout(appDir); err != nil {
+			log.Printf("store: layout migration: %v", err)
+		}
+		settingsDir = appDir
 	}
 	settings, err := store.LoadSettings(settingsDir, configDir)
 	if err != nil {
 		return nil, err
 	}
-
-	st := opts.Store
 	if st == nil {
-		dir := settings.ProfilesDir
-		if dir == "" {
-			dir = settingsDir
-		}
-		st, err = store.New(dir)
+		st, err = store.Open(settingsDir)
 		if err != nil {
 			return nil, err
 		}
@@ -396,10 +401,9 @@ func (s *Service) Diagnostics() Diagnostics {
 		Displays:        displays,
 		HotkeySource:    s.hotkeys.Name(),
 		HotkeyError:     hotkey.FallbackReason,
+		AppDir:          s.store.Root,
 		ProfilesDir:     s.store.Dir,
-	}
-	if p, err := logging.Path(); err == nil {
-		d.LogDir = p
+		LogDir:          s.store.Root,
 	}
 	return d
 }
@@ -451,7 +455,7 @@ func (s *Service) recordRun(p engine.Progress) {
 			Error:      p.Error,
 		}
 		limit := s.settings.RunHistoryLimit
-		dir := s.store.Dir
+		dir := s.store.Root
 		s.runActive = false
 		s.mu.Unlock()
 		if err := store.AppendRun(dir, rec, limit); err != nil {
@@ -468,11 +472,11 @@ func (s *Service) GetRunHistory() ([]store.RunRecord, error) {
 	s.mu.Lock()
 	limit := s.settings.RunHistoryLimit
 	s.mu.Unlock()
-	return store.ListRuns(s.store.Dir, limit)
+	return store.ListRuns(s.store.Root, limit)
 }
 
 // ClearRunHistory deletes the recorded runs.
-func (s *Service) ClearRunHistory() error { return store.ClearRuns(s.store.Dir) }
+func (s *Service) ClearRunHistory() error { return store.ClearRuns(s.store.Root) }
 
 // Stop cancels the run immediately, releasing all inputs.
 func (s *Service) Stop() error { return s.engine.Stop() }
@@ -606,20 +610,17 @@ func (s *Service) SaveSettings(st store.Settings) error {
 	return store.SaveSettings(s.settingsDir, &st)
 }
 
+// AppDir returns the app folder.
+func (s *Service) AppDir() string { return s.store.Root }
+
 // ProfilesDir returns the resolved profiles folder.
 func (s *Service) ProfilesDir() string { return s.store.Dir }
 
-// OpenProfilesDir opens the profiles folder in the OS file manager.
-func (s *Service) OpenProfilesDir() error { return store.OpenPath(s.store.Dir) }
+// OpenAppDir opens the app folder in the OS file manager.
+func (s *Service) OpenAppDir() error { return store.OpenPath(s.store.Root) }
 
-// OpenLogDir opens the log folder in the OS file manager.
-func (s *Service) OpenLogDir() error {
-	dir, err := store.StateDir()
-	if err != nil {
-		return err
-	}
-	return store.OpenPath(dir)
-}
+// OpenLogDir opens the app folder (the log lives there).
+func (s *Service) OpenLogDir() error { return store.OpenPath(s.store.Root) }
 
 // Version returns the embedded app version.
 func (s *Service) Version() string { return s.version }

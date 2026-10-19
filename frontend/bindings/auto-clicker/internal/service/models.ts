@@ -22,6 +22,7 @@ export interface Diagnostics {
     "displays": input$0.Display[] | null;
     "hotkeySource": string;
     "hotkeyError"?: string;
+    "appDir": string;
     "profilesDir": string;
     "logDir": string;
 }

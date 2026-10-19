@@ -21,6 +21,7 @@ export function DiagnosticsPanel({
     ["Desktop", `${d.desktopWidth}×${d.desktopHeight}`],
     ["Displays", d.displays.map((x) => `${x.W}×${x.H}@${x.X},${x.Y}`).join(", ") || "—"],
     ["Hotkeys", d.hotkeySource + (d.hotkeyError ? ` (${d.hotkeyError})` : "")],
+    ["App folder", d.appDir],
     ["Profiles", d.profilesDir],
     ["Logs", d.logDir],
   ];

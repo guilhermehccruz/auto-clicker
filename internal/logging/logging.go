@@ -1,4 +1,4 @@
-// Package logging sends the app's log to a file in the OS state dir. This is
+// Package logging sends the app's log to a file in the app folder. This is
 // essential on Windows, where the GUI binary (-H windowsgui) has no console.
 package logging
 
@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-
-	"auto-clicker/internal/store"
 )
 
 const (
@@ -18,22 +16,15 @@ const (
 	keep     = 3
 )
 
-// Path returns the log file path (whether or not it exists).
-func Path() (string, error) {
-	dir, err := store.StateDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "app.log"), nil
+// Path returns the log file path inside appDir (whether or not it exists).
+func Path(appDir string) string {
+	return filepath.Join(appDir, "app.log")
 }
 
-// Setup redirects the standard logger to <state>/app.log (and to stderr on
+// Setup redirects the standard logger to <appDir>/app.log (and to stderr on
 // non-Windows), rotating at 1 MiB with `keep` files. It returns the log path.
-func Setup() (string, error) {
-	path, err := Path()
-	if err != nil {
-		return "", err
-	}
+func Setup(appDir string) (string, error) {
+	path := Path(appDir)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", err
 	}

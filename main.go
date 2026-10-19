@@ -33,8 +33,12 @@ var assets embed.FS
 var version = "dev"
 
 func main() {
-	// Log to a file first: the Windows GUI binary has no console.
-	if logPath, err := logging.Setup(); err != nil {
+	appDir, err := store.DefaultAppDir()
+	if err != nil {
+		log.Fatalf("app dir: %v", err)
+	}
+	// Log to a file in the app folder first: the Windows GUI binary has no console.
+	if logPath, err := logging.Setup(appDir); err != nil {
 		log.Printf("logging setup failed: %v", err)
 	} else {
 		log.Printf("auto-clicker %s starting; log file: %s", version, logPath)
@@ -71,6 +75,7 @@ func main() {
 	svc, err := service.New(service.Options{
 		Version:   version,
 		ConfigDir: configDir,
+		AppDir:    appDir,
 		Emitter: func(p engine.Progress) {
 			if app != nil {
 				app.Event.Emit("run:progress", p)

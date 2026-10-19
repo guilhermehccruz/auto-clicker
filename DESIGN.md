@@ -484,7 +484,17 @@ never fires.
 
 ### 3.8 Where profiles are stored
 
-Profiles live in a user-visible folder, one JSON file per profile:
+Profiles live in a user-visible folder, one JSON file per profile, alongside the
+app's files:
+
+```text
+Documents/auto-clicker/        # app folder
+  app.log
+  settings.json
+  runs.jsonl
+  profiles/                    # one <slug>.json per profile
+    idle-tycoon.json
+```
 
 | OS | Path resolution |
 |---|---|
@@ -494,8 +504,10 @@ Profiles live in a user-visible folder, one JSON file per profile:
 Rules:
 - **Never hardcode the path string.** `Documents` may be redirected (OneDrive on
   Windows, XDG config on Linux) or localized. Resolve through the OS API, fall back to
-  `$HOME`. The resolved path appears in Settings with an "Open folder" button and is
-  overridable, so users who prefer an app-data location can move it.
+  `$HOME`. Settings shows the resolved app folder with a single **Open app folder** button.
+- **One-time layout migration.** On startup, profile `.json` files found in the app root
+  are moved into `profiles/` (settings.json and runs.jsonl stay in the root). If both
+  copies exist, `profiles/` wins and the root copy is left untouched, never deleted.
 - **The filename is the profile id**: `slug(name).json`, e.g. `idle-tycoon.json`.
   Slugify is deterministic: lowercase → NFKD-fold and strip diacritics → replace every run
   of non-`[a-z0-9]` with `-` → trim leading/trailing `-` → truncate to 64 chars. An empty
@@ -522,11 +534,11 @@ Rules:
   If a profile that is open with unsaved in-memory edits changed on disk, the app asks
   before discarding the edit rather than silently clobbering either side. A real watcher
   is a Phase 2 candidate.
-- `settings.json` lives in the **profiles folder** (`<Documents>/auto-clicker/settings.json`),
-  so a profile folder is self-contained and easy to back up or move. It is skipped when
+- `settings.json` lives in the **app folder** (`<Documents>/auto-clicker/settings.json`),
+  next to `runs.jsonl` and the `profiles/` subfolder. It is skipped when
   listing profiles, and a profile named "Settings" gets a suffixed id so it can never
   overwrite it. Its schema is [§3.10](#310-app-settings-schema). The single-instance lock
-  stays in the OS config dir ([§6](#6-safety)), and logs in the state dir.
+  stays in the OS config dir ([§6](#6-safety)).
 - Profiles are plain JSON: back up, diff, or move them between machines by copying the
   folder.
 
@@ -576,12 +588,13 @@ Rules:
   diagnostics.
 - **`defaultMaxRuntimeSec`** only seeds new profiles. The cap that actually applies to a
   run lives in the profile (`failsafe.maxRuntimeSec`, [§6](#6-safety)) so it travels with
-  the file; Settings → Safety edits the open profile, not this seed.
+  the file; the bottom bar's "This profile" row edits the open profile, not this seed.
 
 ### 3.11 First run and profile creation
 
-- **First launch.** The profiles dir is resolved and created, `settings.json` is written
-  there with defaults, and — if it holds no profiles — the app
+- **First launch.** The app folder (`Documents/auto-clicker/`) and its `profiles/`
+  subfolder are created; `settings.json` and `runs.jsonl` live in the app root. If
+  `profiles/` holds no profiles, the app
   creates one named **"New profile"** (file `profile.json`) with `modules: []`,
   `loop: { mode: "once", count: 1, loopDelay: { min: 250, max: 250 } }`,
   `failsafe` seeded from `defaultMaxRuntimeSec`, and the current display snapshot. There
@@ -737,9 +750,11 @@ fatal, so a failure only logs.
    is already held, this process starts **no engine, no driver and no hotkeys**; it shows
    a minimal window with "Auto Clicker is already running" and a Close button, then exits.
    (A native OS dialog would be platform-specific; reusing the Wails shell is uniform.)
-2. Load `settings.json` ([§3.10](#310-app-settings-schema)); write defaults on first run.
-3. Resolve and create the profiles dir, list profiles, restore `selectedProfile` (falling
-   back to the first), and create the first-run template if the folder is empty
+2. Resolve the app folder and run the one-time layout migration (profile JSONs from the
+   root into `profiles/`), then load `settings.json` ([§3.10](#310-app-settings-schema));
+   write defaults on first run.
+3. List profiles from `profiles/`, restore `selectedProfile` (falling back to the first),
+   and create the first-run template if the folder is empty
    ([§3.11](#311-first-run-and-profile-creation)).
 4. Show the main window with the restored geometry. The window position, size and
    maximised state come from `settings.window`, falling back to **1100×720 centered** on
@@ -909,10 +924,10 @@ after the fact. That is why the hotkey can safely be a silent no-op.
 | Group | Contents |
 |---|---|
 | Hotkeys | Editable **Run / Stop** and **Pause / Resume** triggers (canonicalized on Apply; the portal re-prompts consent), the active source (`Portal (KDE)`, `X11 grab`, `Windows RegisterHotKey`, or ⚠ unavailable), plus the **"Enable native Wayland input"** action when the app is on the `x11` fallback and `libei` is available ([§2.2](#22-backend-selection)). |
-| Profiles | Resolved folder path, `Open folder`, `Change…` |
+| App folder | Resolved app folder, **Open app folder** (profiles live in `profiles/` inside it) |
 | Advanced | `defaultMaxRuntimeSec` (seed for new profiles); resolved log folder + `Open log folder` |
 | Updates | Current version, a **Check for updates** button (manual trigger) and the Update action when a newer release is found ([§5.9](#59-self-update)) |
-| Diagnostics | App version, robotgo pin, application id, selected backend (+ fallback reason), `CursorPos` availability, virtual desktop geometry, hotkey registration result, resolved log path, and a `Copy diagnostics` button for bug reports |
+| Diagnostics | App version, robotgo pin, application id, selected backend (+ fallback reason), `CursorPos` availability, virtual desktop geometry, hotkey registration result, app folder / profiles / log paths, and a `Copy diagnostics` button for bug reports |
 
 The diagnostics panel is not a nicety: this app's failure modes are environment-specific
 (portal consent, session type, scaling), and the first support question will always be
@@ -1356,7 +1371,7 @@ portable archives, mouse and keyboard operation.
 | Docs / lint | ✅ done | DESIGN §10 packaging row fixed; ESLint wired into CI |
 | Keyboard-only operation | open | select and operate modules/groups without the mouse; needs a focus/selection model and a shortcut map |
 | Hold action | open | press and keep a key or mouse button down until Stop. A hold blocks the rest of the pipeline, so decide whether it must be the **last** active item |
-| Single app folder | open | `Documents/auto-clicker/` holds `app.log`, `settings.json`, `runs.jsonl`; profiles move to `profiles/`; one **Open app folder** button; migrate old files on startup |
+| Single app folder | ✅ done | `app.log`, `settings.json`, `runs.jsonl` in the app root; profiles in `profiles/`; startup migration; one Open app folder button |
 | History modal | ✅ done | opened from the sidebar; lists `runs.jsonl` and owns Clear + the retention count |
 | Profile controls on the main screen | ✅ done | max runtime + humanize sit in the bottom bar's second row |
 | Light theme | **dropped** | the dark theme is the only theme |
@@ -1561,9 +1576,9 @@ Notes:
   ids are unique within the profile; deleting a group also deletes its modules (with a
   confirmation).
 - Unknown keys at any level are preserved on round-trip.
-- `settings.json` sits in the profiles folder but is not a profile, specified in
-  [§3.10](#310-app-settings-schema); it is skipped when listing profiles and never travels
-  inside one.
+- `settings.json` sits in the app folder but is not a profile, specified in
+  [§3.10](#310-app-settings-schema); profiles live in its `profiles/` subfolder and it is
+  skipped when listing them.
 
 ---
 
