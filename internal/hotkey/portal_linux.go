@@ -279,10 +279,12 @@ func (p *portalSource) watchActivated() {
 }
 
 // Close implements Source. Shortcuts are session-scoped, so closing the session
-// removes them from kglobalshortcutsrc (Appendix B.7).
+// removes them from kglobalshortcutsrc (Appendix B.7). Close is a method on the
+// session object itself, not on the portal desktop object.
 func (p *portalSource) Close() error {
 	if p.session != "" {
-		_ = p.obj.Call(ifaceSession+".Close", 0).Err
+		obj := p.conn.Object(portalDest, p.session)
+		_ = obj.Call(ifaceSession+".Close", 0).Err
 	}
 	return p.conn.Close()
 }

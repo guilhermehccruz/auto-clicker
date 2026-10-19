@@ -527,11 +527,18 @@ func (s *Service) SetHotkeys(run, pause string) (store.Settings, error) {
 		return st, err
 	}
 
+	// Release the old grabs/session BEFORE binding the new ones: on X11 a
+	// GrabKey while the old connection still holds the key fails silently, and
+	// on the portal the old connection still owns the app id. Restarting is
+	// not needed; the new source replaces the old one live.
+	_ = old.Close()
 	hk := s.newHotkeys(s.onHotkey)
 	s.mu.Lock()
 	s.hotkeys = hk
 	s.mu.Unlock()
-	_ = old.Close()
+	if hk.Name() == "unavailable" {
+		return st, errors.New("hotkeys: no global shortcut source available")
+	}
 	if _, err := hk.Register(s.hotkeyBindings()); err != nil {
 		return st, err
 	}
