@@ -7,6 +7,7 @@ import { ModuleList } from "./components/ModuleList";
 import { PickBanner } from "./components/PickBanner";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { Sidebar } from "./components/Sidebar";
+import { HistoryDialog } from "./components/HistoryDialog";
 import { UndoToast } from "./components/UndoToast";
 import { WarningBanner } from "./components/WarningBanner";
 import { hasBlocking } from "./lib/validate";
@@ -51,6 +52,7 @@ export default function App() {
   // group header); Delete acts on it (DESIGN §5.8).
   const [selected, setSelected] = useState<{ kind: "module" | "group"; id: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [pickActive, setPickActive] = useState(false);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -98,6 +100,7 @@ export default function App() {
         else if (runner.running) void runner.pause();
       } else if (e.key === "Escape") {
         setShowSettings(false);
+        setShowHistory(false);
       } else if (!typing && e.key === "Delete" && !locked && selected) {
         if (selected.kind === "module") deleteModule(selected.id);
         else deleteGroup(selected.id);
@@ -241,6 +244,7 @@ export default function App() {
           onDuplicate={(id) => void profiles.duplicate(id)}
           onDelete={(id) => void profiles.remove(id)}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenHistory={() => setShowHistory(true)}
         />
 
         <main className="flex min-w-0 flex-1 flex-col">
@@ -350,9 +354,17 @@ export default function App() {
           onCheckUpdate={() => api.checkUpdate()}
           onInstallUpdate={installUpdate}
           onSetHotkeys={setHotkeys}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {showHistory && settings && (
+        <HistoryDialog
+          settings={settings}
+          onSave={(s) => void saveSettings(s)}
           onLoadHistory={() => api.getRunHistory()}
           onClearHistory={() => api.clearRunHistory()}
-          onClose={() => setShowSettings(false)}
+          onClose={() => setShowHistory(false)}
         />
       )}
 

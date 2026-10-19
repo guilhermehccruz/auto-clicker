@@ -821,7 +821,9 @@ Interaction rules:
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Left sidebar** — profiles: select, inline rename, duplicate, delete, plus Settings.
+- **Left sidebar** — profiles: select, inline rename, duplicate, delete, plus **History**
+  (opens the run-history modal: `runs.jsonl`, newest first, with Clear and the retention
+  count) and Settings.
   Profile rows show module count and enabled count (`3 modules · 2 on`).
 - **Center** — the click pipeline: **ungrouped clicks**, then **groups** (each a titled,
   collapsible-looking section with an enable switch, its own click list, a **repeat** input
@@ -910,7 +912,6 @@ after the fact. That is why the hotkey can safely be a silent no-op.
 | Profiles | Resolved folder path, `Open folder`, `Change…` |
 | Advanced | `defaultMaxRuntimeSec` (seed for new profiles); resolved log folder + `Open log folder` |
 | Updates | Current version, a **Check for updates** button (manual trigger) and the Update action when a newer release is found ([§5.9](#59-self-update)) |
-| History | The last runs from `runs.jsonl` (profile, stop reason, clicks, duration), a **Clear** button and the retention count (`runHistoryLimit`); one JSON object per run in the profiles folder |
 | Diagnostics | App version, robotgo pin, application id, selected backend (+ fallback reason), `CursorPos` availability, virtual desktop geometry, hotkey registration result, resolved log path, and a `Copy diagnostics` button for bug reports |
 
 The diagnostics panel is not a nicety: this app's failure modes are environment-specific
@@ -1356,7 +1357,7 @@ portable archives, mouse and keyboard operation.
 | Keyboard-only operation | open | select and operate modules/groups without the mouse; needs a focus/selection model and a shortcut map |
 | Hold action | open | press and keep a key or mouse button down until Stop. A hold blocks the rest of the pipeline, so decide whether it must be the **last** active item |
 | Single app folder | open | `Documents/auto-clicker/` holds `app.log`, `settings.json`, `runs.jsonl`; profiles move to `profiles/`; one **Open app folder** button; migrate old files on startup |
-| History modal | open | move the run history out of Settings into its own modal; **Clear** lives there |
+| History modal | ✅ done | opened from the sidebar; lists `runs.jsonl` and owns Clear + the retention count |
 | Profile controls on the main screen | open | move max runtime + humanize next to the loop controls, in two tidy rows; Settings keeps app-level items |
 | Light theme | **dropped** | the dark theme is the only theme |
 

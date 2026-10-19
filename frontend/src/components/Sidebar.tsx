@@ -12,6 +12,7 @@ export function Sidebar({
   onDuplicate,
   onDelete,
   onOpenSettings,
+  onOpenHistory,
 }: {
   profiles: ProfileSummary[];
   problems: ProblemFile[];
@@ -23,6 +24,7 @@ export function Sidebar({
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onOpenSettings: () => void;
+  onOpenHistory: () => void;
 }) {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-neutral-800 bg-neutral-900">
@@ -60,13 +62,22 @@ export function Sidebar({
         >
           + New
         </button>
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          className="rounded px-2 py-1 text-[12px] text-neutral-300 hover:bg-neutral-800 focus-visible:ring-2 focus-visible:ring-indigo-500"
-        >
-          ⚙ Settings
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onOpenHistory}
+            className="rounded px-2 py-1 text-[12px] text-neutral-300 hover:bg-neutral-800 focus-visible:ring-2 focus-visible:ring-indigo-500"
+          >
+            History
+          </button>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="rounded px-2 py-1 text-[12px] text-neutral-300 hover:bg-neutral-800 focus-visible:ring-2 focus-visible:ring-indigo-500"
+          >
+            ⚙ Settings
+          </button>
+        </div>
       </div>
     </aside>
   );
