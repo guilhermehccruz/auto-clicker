@@ -166,7 +166,18 @@ export interface Settings {
   window: WindowGeometry;
   hotkeys: Hotkeys;
   defaultMaxRuntimeSec: number;
+  runHistoryLimit: number;
   theme: string;
+}
+
+export interface RunRecord {
+  startedAt: string;
+  profile: string;
+  mode: string;
+  stopReason: string;
+  clicks: number;
+  elapsedMs: number;
+  error?: string;
 }
 
 export const MODULE_DEFAULTS = {

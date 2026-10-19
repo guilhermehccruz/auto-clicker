@@ -304,10 +304,15 @@ export default function App() {
           diagnostics={diagnostics}
           capabilities={capabilities}
           profile={profile}
+          updating={updating}
           onSave={(s) => void saveSettings(s)}
           onChangeFailsafe={(f: Failsafe) => profiles.update((p) => ({ ...p, failsafe: f }))}
           onOpenFolder={() => void api.openProfilesDir()}
           onOpenLog={() => void api.openLogDir()}
+          onCheckUpdate={() => api.checkUpdate()}
+          onInstallUpdate={installUpdate}
+          onLoadHistory={() => api.getRunHistory()}
+          onClearHistory={() => api.clearRunHistory()}
           onClose={() => setShowSettings(false)}
         />
       )}

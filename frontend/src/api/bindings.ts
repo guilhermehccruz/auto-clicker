@@ -8,6 +8,7 @@ import type {
   Progress,
   Settings,
   UpdateInfo,
+  RunRecord,
 } from "./types";
 import { MockApi } from "./mock";
 import { WailsApi } from "./wails";
@@ -42,6 +43,8 @@ export interface Api {
   status(): Promise<Progress>;
   checkUpdate(): Promise<UpdateInfo>;
   installUpdate(): Promise<void>;
+  getRunHistory(): Promise<RunRecord[]>;
+  clearRunHistory(): Promise<void>;
 
   getSettings(): Promise<Settings>;
   saveSettings(s: Settings): Promise<void>;

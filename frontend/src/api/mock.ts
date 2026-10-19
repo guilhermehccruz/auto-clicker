@@ -9,6 +9,7 @@ import type {
   Progress,
   Settings,
   UpdateInfo,
+  RunRecord,
 } from "./types";
 import type { Api } from "./bindings";
 import { validateProfile } from "../lib/validate";
@@ -24,6 +25,7 @@ export class MockApi implements Api {
     window: { x: 120, y: 80, width: 1100, height: 720, maximized: false },
     hotkeys: { run: "F8", pause: "F9" },
     defaultMaxRuntimeSec: 3600,
+    runHistoryLimit: 200,
     theme: "dark",
   };
   private progress: Progress = emptyProgress();
@@ -238,6 +240,12 @@ export class MockApi implements Api {
   }
 
   async installUpdate(): Promise<void> {}
+
+  async getRunHistory(): Promise<RunRecord[]> {
+    return [];
+  }
+
+  async clearRunHistory(): Promise<void> {}
 
   async status(): Promise<Progress> {
     return this.progress;

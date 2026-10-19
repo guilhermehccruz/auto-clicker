@@ -33,10 +33,14 @@ type Settings struct {
 	Window               Window  `json:"window"`
 	Hotkeys              Hotkeys `json:"hotkeys"`
 	DefaultMaxRuntimeSec int     `json:"defaultMaxRuntimeSec"`
+	RunHistoryLimit      int     `json:"runHistoryLimit"`
 	Theme                string  `json:"theme"`
 
 	extras map[string]json.RawMessage
 }
+
+// DefaultRunHistoryLimit caps how many runs runs.jsonl keeps.
+const DefaultRunHistoryLimit = 200
 
 // DefaultSettings returns the documented defaults.
 func DefaultSettings() Settings {
@@ -45,6 +49,7 @@ func DefaultSettings() Settings {
 		Window:               Window{W: 1100, H: 720},
 		Hotkeys:              Hotkeys{Run: "F8", Pause: "F9"},
 		DefaultMaxRuntimeSec: model.DefaultMaxRuntimeSec,
+		RunHistoryLimit:      DefaultRunHistoryLimit,
 		Theme:                "dark",
 	}
 }
@@ -166,6 +171,9 @@ func (s *Settings) UnmarshalJSON(b []byte) error {
 	}
 	if !hasKey(raw, "defaultMaxRuntimeSec") {
 		s.DefaultMaxRuntimeSec = def.DefaultMaxRuntimeSec
+	}
+	if !hasKey(raw, "runHistoryLimit") || s.RunHistoryLimit <= 0 {
+		s.RunHistoryLimit = def.RunHistoryLimit
 	}
 	if !hasKey(raw, "theme") || s.Theme == "" {
 		s.Theme = def.Theme

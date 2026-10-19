@@ -552,6 +552,7 @@ always writes every key so the file is self-describing.
   "window": { "x": 120, "y": 80, "width": 1100, "height": 720, "maximized": false },
   "hotkeys": { "run": "F8", "pause": "F9" },
   "defaultMaxRuntimeSec": 3600,       // seed for NEW profiles; 0 = unlimited
+  "runHistoryLimit": 200,             // runs.jsonl keeps at most this many runs
   "theme": "dark"                     // "dark" | "light" | "system" (light/system = Phase 2)
 }
 ```
@@ -905,6 +906,8 @@ after the fact. That is why the hotkey can safely be a silent no-op.
 | Safety (per profile) | Max runtime for the **open profile** (`failsafe.maxRuntimeSec`, minutes, `0` = unlimited; new profiles seeded from `defaultMaxRuntimeSec`, default 60). This edits the profile, not a global — the cap travels with the file ([§3.10](#310-app-settings-schema)). Corner failsafe toggle — **disabled with a tooltip when `CursorPos()` is unavailable**. The whole group is disabled when no profile is open. |
 | Profiles | Resolved folder path, `Open folder`, `Change…` |
 | Advanced | `defaultMaxRuntimeSec` (seed for new profiles); resolved log folder + `Open log folder` |
+| Updates | Current version, a **Check for updates** button (manual trigger) and the Update action when a newer release is found ([§5.9](#59-self-update)) |
+| History | The last runs from `runs.jsonl` (profile, stop reason, clicks, duration), a **Clear** button and the retention count (`runHistoryLimit`); one JSON object per run in the profiles folder |
 | Diagnostics | App version, robotgo pin, application id, selected backend (+ fallback reason), `CursorPos` availability, virtual desktop geometry, hotkey registration result, resolved log path, and a `Copy diagnostics` button for bug reports |
 
 The diagnostics panel is not a nicety: this app's failure modes are environment-specific
@@ -1341,10 +1344,26 @@ GTK4/WebKitGTK-6.0, so the runtime deps match the platform scope in
 [§3.6](#36-platform-scope).
 
 ### Phase 2 — polish
-Mouse-to-corner failsafe tuning; tray icon with minimize-to-tray (which changes the
-"closing stops the run" rule — document the change); hotkey rebinding; `delayAfterRange`
-humanized pauses; import/export; run history/log; theme (light/system); packaged releases
-for both OSes.
+
+Hotkey rebinding in Settings; `delayAfterRange` (humanized per-click pauses); theme
+(light/system); run history. Each is optional and independent — see the backlog below.
+
+### Backlog (living list)
+
+| Item | State | Notes |
+|---|---|---|
+| Self-update signing | planned | the GitHub provider ships **checksums only**; signatures (ed25519) need a custom provider plus a CI signing key — see [§12](#12-open-questions) |
+| "Check for updates" in Settings | ✅ done | manual trigger alongside the silent startup check |
+| Update channel | **decided** | every push to `main` publishes a new version; no prerelease/stable split |
+| Tray icon / minimize-to-tray | **dropped** | closing the window keeps stopping the run |
+| Hotkey rebinding | planned | edit the F8/F9 triggers in Settings (portal notation) |
+| Run history | ✅ done | append-only `runs.jsonl`, capped by a Settings count (`runHistoryLimit`) |
+| `delayAfterRange` | open | humanize the per-click delay like `loopDelay` |
+| Docs / lint | open | DESIGN §10 `package` row is stale; ESLint is not configured |
+
+Removed from the backlog (decided / validated): mixed-DPI, fullscreen overlay,
+`ClickHere` at runtime, `XGrabKey`, portal consent, the manual release matrix, Windows
+runtime, import/export, and packaged installers.
 
 ### Deferred / maybe never
 `relativeToCursor` and `windowRelative` targets; scroll and drag (down → move → up)
@@ -1471,9 +1490,9 @@ Design choices:
    expressed with `loop: forever`. Is that discoverable enough, or should the UI offer a
    "repeat" helper that *writes* that combination for the user? Worth a usability pass
    after the first build.
-4. **Tray icon in v1.** Today closing the window stops the run. A tray icon would let the
-   window close while clicks continue — arguably essential for a clicker, but it changes
-   the safety story (an invisible running app) and adds per-OS code. Currently Phase 2.
+4. **Tray icon.** Dropped: closing the window keeps stopping the run, and the app stays a
+   single window with no per-OS tray code. (Revisit only if running while closed becomes a
+   real need.)
 5. **Coordinate re-mapping on display change.** The warning banner tells the user to
    re-pick. A future version could offer a one-click proportional re-map
    (old geometry → new geometry) with a preview. Nice, but only if the warning turns out
@@ -1481,8 +1500,12 @@ Design choices:
 6. **Name.** Working title `auto-clicker` / "Auto Clicker", application id `auto-clicker`
    ([§2.4](#24-module-path-and-naming)). The app id is fixed now (KDE consent is keyed to
    it); only the human-facing name still needs a confirm before the first release.
-7. **Windows runtime validation** of the input backend and `RegisterHotKey` — pending a
-   reboot on the test machine.
+7. **Update signing.** The GitHub provider verifies a `checksums.txt` digest only — it never
+   populates a signature, so `updater.Config.PublicKey` alone changes nothing. Real
+   authenticity needs a custom provider that fetches a published `.sig` and sets
+   `Verification.Signature` (ed25519ph), plus an ed25519 keypair whose private half lives as
+   a CI secret and whose public half is pinned in the binary. Open: is that worth it for a
+   personal project, or is checksum-only (corruption detection) enough?
 
 ---
 

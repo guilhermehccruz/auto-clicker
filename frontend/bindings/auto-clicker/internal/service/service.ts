@@ -49,6 +49,13 @@ export function CheckUpdate(): $CancellablePromise<$models.UpdateInfo> {
 }
 
 /**
+ * ClearRunHistory deletes the recorded runs.
+ */
+export function ClearRunHistory(): $CancellablePromise<void> {
+    return $Call.ByID(1502219161);
+}
+
+/**
  * CloseHotkeys releases the global shortcuts.
  */
 export function CloseHotkeys(): $CancellablePromise<void> {
@@ -102,6 +109,13 @@ export function Displays(): $CancellablePromise<input$0.Display[] | null> {
  */
 export function DuplicateProfile(id: string): $CancellablePromise<string> {
     return $Call.ByID(321938359, id);
+}
+
+/**
+ * GetRunHistory returns the recorded runs, newest first.
+ */
+export function GetRunHistory(): $CancellablePromise<store$0.RunRecord[] | null> {
+    return $Call.ByID(1373181900);
 }
 
 /**

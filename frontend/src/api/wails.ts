@@ -12,6 +12,7 @@ import type {
   Progress,
   Settings,
   UpdateInfo,
+  RunRecord,
 } from "./types";
 
 // WailsApi adapts the generated bindings to the UI's Api interface. It is used
@@ -113,6 +114,15 @@ export class WailsApi implements Api {
 
   async installUpdate(): Promise<void> {
     await Svc.Service.InstallUpdate();
+  }
+
+  async getRunHistory(): Promise<RunRecord[]> {
+    const runs = await Svc.Service.GetRunHistory();
+    return (runs ?? []) as unknown as RunRecord[];
+  }
+
+  async clearRunHistory(): Promise<void> {
+    await Svc.Service.ClearRunHistory();
   }
 
   async status(): Promise<Progress> {

@@ -10,6 +10,26 @@ export interface ProblemFile {
 }
 
 /**
+ * RunRecord is one completed run.
+ */
+export interface RunRecord {
+    /**
+     * RFC3339, UTC
+     */
+    "startedAt": string;
+    "profile": string;
+
+    /**
+     * loop mode
+     */
+    "mode": string;
+    "stopReason": string;
+    "clicks": number;
+    "elapsedMs": number;
+    "error"?: string;
+}
+
+/**
  * Settings is the machine-specific app configuration (DESIGN §3.10).
  */
 export type Settings = any;

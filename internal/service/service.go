@@ -101,6 +101,12 @@ type Service struct {
 	pickMu        sync.Mutex
 	picking       bool
 	pickCancel    chan struct{}
+
+	// Run-history bookkeeping, guarded by mu.
+	runActive  bool
+	runStarted time.Time
+	runProfile string
+	runMode    string
 }
 
 // New builds a Service, loading settings and opening the store.
@@ -170,6 +176,7 @@ func New(opts Options) (*Service, error) {
 	}
 	s.hotkeys = hk
 	engineOpts := []engine.Option{engine.WithEmitter(func(p engine.Progress) {
+		s.recordRun(p)
 		if opts.Emitter != nil {
 			opts.Emitter(p)
 		}
@@ -392,8 +399,64 @@ func (s *Service) Run(profileID string) error {
 	if issues := s.Validate(p); model.HasBlocking(issues) {
 		return errors.New(firstBlocking(issues))
 	}
+	s.mu.Lock()
+	s.runActive = false
+	s.runProfile = p.Name
+	s.runMode = p.Loop.Mode
+	s.mu.Unlock()
 	return s.engine.Run(p)
 }
+
+// recordRun captures run-history entries from progress events. It starts a
+// record when a run becomes active and appends one when it returns to idle.
+func (s *Service) recordRun(p engine.Progress) {
+	s.mu.Lock()
+	switch p.State {
+	case engine.StateRunning, engine.StatePaused:
+		if !s.runActive {
+			s.runActive = true
+			s.runStarted = time.Now()
+			s.runProfile = p.ProfileName
+		}
+		s.mu.Unlock()
+		return
+	case engine.StateIdle:
+		if !s.runActive {
+			s.mu.Unlock()
+			return
+		}
+		rec := store.RunRecord{
+			StartedAt:  s.runStarted.UTC().Format(time.RFC3339),
+			Profile:    s.runProfile,
+			Mode:       s.runMode,
+			StopReason: p.StopReason,
+			Clicks:     p.Clicks,
+			ElapsedMs:  p.ElapsedMs,
+			Error:      p.Error,
+		}
+		limit := s.settings.RunHistoryLimit
+		dir := s.store.Dir
+		s.runActive = false
+		s.mu.Unlock()
+		if err := store.AppendRun(dir, rec, limit); err != nil {
+			log.Printf("run history: %v", err)
+		}
+		return
+	default:
+		s.mu.Unlock()
+	}
+}
+
+// GetRunHistory returns the recorded runs, newest first.
+func (s *Service) GetRunHistory() ([]store.RunRecord, error) {
+	s.mu.Lock()
+	limit := s.settings.RunHistoryLimit
+	s.mu.Unlock()
+	return store.ListRuns(s.store.Dir, limit)
+}
+
+// ClearRunHistory deletes the recorded runs.
+func (s *Service) ClearRunHistory() error { return store.ClearRuns(s.store.Dir) }
 
 // Stop cancels the run immediately, releasing all inputs.
 func (s *Service) Stop() error { return s.engine.Stop() }

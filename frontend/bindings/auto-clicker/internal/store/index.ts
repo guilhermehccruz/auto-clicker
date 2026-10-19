@@ -3,6 +3,7 @@
 
 export type {
     ProblemFile,
+    RunRecord,
     Settings,
     Summary
 } from "./models.js";
