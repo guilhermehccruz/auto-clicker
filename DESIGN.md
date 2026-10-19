@@ -860,11 +860,12 @@ Interaction rules:
   toggles it**, mirroring how clicking a module card expands it (interactive controls
   excluded); **double-clicking the group name renames it**. The name text is a rename-only
   zone sized to its content (no delay); the header's free space toggles.
-- **Bottom bar** — two rows. Row 1: loop-mode selector plus its parameters (enabled only
-  while idle) — `passes` for `count`, and a `loop delay min–max` pair (ms) for
-  `count`/`forever` — live telemetry, and Run/Stop/Pause mirroring the hotkeys (labeled
-  with their key). Row 2 (**this profile**): `max runtime` (minutes, `0` = unlimited) and
-  the **Humanize delays** toggle ([§3.2](#32-timing)); disabled when no profile is open.
+- **Bottom bar** — two rows. The **top row** is **this profile**: `max runtime` (minutes,
+  `0` = unlimited) and the **Humanize delays** toggle ([§3.2](#32-timing)); disabled when
+  no profile is open. The **bottom row** is the pipeline: loop-mode selector plus its
+  parameters (enabled only while idle) — `passes` for `count`, and a `loop delay min–max`
+  pair (ms) for `count`/`forever` — live telemetry, and Run/Stop/Pause mirroring the
+  hotkeys (labeled with their key).
 
 Drag-and-drop uses `@dnd-kit` with a visible drop indicator line, autoscroll near the
 edges, and **keyboard-accessible reordering** (lift with Space, move with arrows, drop
@@ -895,7 +896,7 @@ Expanding a card (or its menu → Expand) reveals the edit row:
 click: label [            ]  target ( ▪ absolute  ○ cursor )  pick ⌖  x [940] y [520]
        button [ left ▼ ]   count [ 3 ]   delay [ 90 ] ms   hold [ 10 ] ms
 
-key:   label [            ]  keys [ ctrl+c ]  (focus and press; clear)
+key:   label [            ]  keys [ ctrl+c ]  OK / Cancel  (focus, press the combo, confirm)
        count [ 1 ]   delay [ 50 ] ms   hold [ 10 ] ms
 ```
 

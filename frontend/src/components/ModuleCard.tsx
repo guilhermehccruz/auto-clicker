@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent } from "react";
+import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { ButtonName, Issue, Module, Target } from "../api/types";
@@ -196,20 +196,29 @@ function KeyComboInput({
   onChange: (keys: string) => void;
 }) {
   const [recording, setRecording] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <label className="flex items-center gap-2 text-[12px] text-neutral-400">
+    <div className="flex items-center gap-2 text-[12px] text-neutral-400">
       keys
       <input
-        value={value}
+        ref={inputRef}
+        value={recording ? draft : value}
         readOnly
         disabled={disabled}
-        placeholder="click and press a combo"
-        onFocus={() => setRecording(true)}
+        placeholder="focus and press a combo"
+        onFocus={() => {
+          setDraft(value);
+          setRecording(true);
+        }}
         onBlur={() => setRecording(false)}
         onKeyDown={(e) => {
+          if (!recording) return;
           e.preventDefault();
           e.stopPropagation();
           if (e.key === "Escape") {
+            setDraft(value);
+            setRecording(false);
             e.currentTarget.blur();
             return;
           }
@@ -220,22 +229,53 @@ function KeyComboInput({
           if (e.metaKey) mods.push("cmd");
           const key = comboKeyName(e);
           if (!key) return;
-          onChange([...mods, key].join("+"));
+          setDraft([...mods, key].join("+"));
         }}
         className="mono w-56 rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-neutral-100 disabled:opacity-50"
       />
-      <button
-        type="button"
-        onClick={() => onChange("")}
-        disabled={disabled}
-        className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] enabled:hover:bg-neutral-800 disabled:opacity-40"
-      >
-        clear
-      </button>
+      {recording ? (
+        <>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              onChange(draft);
+              setRecording(false);
+              inputRef.current?.blur();
+            }}
+            disabled={disabled}
+            className="rounded border border-emerald-600/60 px-2 py-0.5 text-[11px] text-emerald-300 enabled:hover:bg-emerald-600/10 disabled:opacity-40"
+          >
+            OK
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setDraft(value);
+              setRecording(false);
+              inputRef.current?.blur();
+            }}
+            disabled={disabled}
+            className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] enabled:hover:bg-neutral-800 disabled:opacity-40"
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          disabled={disabled}
+          className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] enabled:hover:bg-neutral-800 disabled:opacity-40"
+        >
+          clear
+        </button>
+      )}
       <span className="text-[11px] text-neutral-500">
-        {recording ? "press the combo…" : "focus and press"}
+        {recording ? "press the combo, then OK" : "focus and press"}
       </span>
-    </label>
+    </div>
   );
 }
 

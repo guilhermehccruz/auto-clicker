@@ -40,7 +40,7 @@ export function BottomBar({
 }) {
   const maxMinutes = profile ? Math.round(profile.failsafe.maxRuntimeSec / 60) : 0;
   return (
-    <footer className="flex flex-col border-t border-neutral-800 bg-neutral-900">
+    <footer className="flex flex-col-reverse border-t border-neutral-800 bg-neutral-900">
       <div className="flex items-center justify-between gap-3 px-3 py-2">
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 text-[12px] text-neutral-400">
@@ -110,7 +110,7 @@ export function BottomBar({
       />
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 border-t border-neutral-800 px-3 py-1.5 text-[12px] text-neutral-400">
+      <div className="flex flex-wrap items-center gap-4 border-b border-neutral-800 px-3 py-1.5 text-[12px] text-neutral-400">
         <span className="text-neutral-500">This profile</span>
         <label className="flex items-center gap-1" title="Max runtime for the open profile (0 = unlimited)">
           max runtime
