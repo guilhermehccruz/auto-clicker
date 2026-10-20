@@ -153,7 +153,16 @@ export function ModuleCard({
           {keyMode ? (
             <KeyComboInput value={m.keys ?? ""} disabled={locked} onChange={(keys) => onUpdate({ keys })} />
           ) : (
-            <TargetEditor target={m.target} disabled={locked} onChange={setTarget} onPick={onPick} />
+            <>
+              <TargetEditor target={m.target} disabled={locked} onChange={setTarget} onPick={onPick} />
+              <KeyComboInput
+                label="held keys"
+                hint="optional: hold keys during the click"
+                value={m.keys ?? ""}
+                disabled={locked}
+                onChange={(keys) => onUpdate({ keys })}
+              />
+            </>
           )}
 
           <div className="flex flex-wrap items-center gap-3 text-[12px] text-neutral-400">
@@ -200,10 +209,14 @@ export function ModuleCard({
 function KeyComboInput({
   value,
   disabled,
+  label = "keys",
+  hint = "focus and press",
   onChange,
 }: {
   value: string;
   disabled: boolean;
+  label?: string;
+  hint?: string;
   onChange: (keys: string) => void;
 }) {
   const [recording, setRecording] = useState(false);
@@ -211,7 +224,7 @@ function KeyComboInput({
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <div className="flex items-center gap-2 text-[12px] text-neutral-400">
-      keys
+      {label}
       <input
         ref={inputRef}
         value={recording ? draft : value}
@@ -231,6 +244,12 @@ function KeyComboInput({
             setDraft(value);
             setRecording(false);
             e.currentTarget.blur();
+            return;
+          }
+          const modOnly = modifierKeyName(e.key);
+          if (modOnly) {
+            // A lone modifier is a valid action ("press shift").
+            setDraft(modOnly);
             return;
           }
           const mods: string[] = [];
@@ -284,10 +303,25 @@ function KeyComboInput({
         </button>
       )}
       <span className="text-[11px] text-neutral-500">
-        {recording ? "press the combo, then OK" : "focus and press"}
+        {recording ? "press the combo, then OK" : hint}
       </span>
     </div>
   );
+}
+
+function modifierKeyName(key: string): string | null {
+  switch (key) {
+    case "Control":
+      return "ctrl";
+    case "Shift":
+      return "shift";
+    case "Alt":
+      return "alt";
+    case "Meta":
+      return "cmd";
+    default:
+      return null;
+  }
 }
 
 // comboKeyName maps a keydown to the robotgo key name used by the backend.

@@ -292,7 +292,9 @@ last group's `delayAfter` is skipped because the loop delay already covers the g
 **Hold (`holdUntilStop`)**: instead of press/sleep/release, the module presses the
 button/key and keeps it down. It is terminal — the run stays active until Stop (or the
 runtime cap), then `ReleaseAll` releases it. Validation therefore requires it to be the
-**last enabled action** and the loop mode to be **`once`**.
+**last enabled action** and the loop mode to be **`once`**. A held modifier shadows the
+OS-level global shortcut (the OS matches modifiers exactly — Shift+F8 is not F8); the
+in-window shortcut tolerates extra modifiers and the Stop button is always available.
 
 ### 3.2 Timing
 
@@ -342,7 +344,7 @@ runtime cap), then `ReleaseAll` releases it. Validation therefore requires it to
 | `enabled` | bool | `true` | — | participates in the run; keeps its list slot when off |
 | `target` | object | `{"kind":"absolute"}` | — | `absolute {x,y}` or `cursor` ([§3.4](#34-targets)); a new module has no coordinates yet, so validation asks for them |
 | `button` | enum | `left` | `left`/`right`/`middle`/`none` | mouse button; `none` = **move only** (absolute target: moves without clicking; `holdMs` is ignored) |
-| `keys` | string | `""` | combo | key combo for `kind: key`, lowercase robotgo names (`ctrl+shift+c`, `f5`, `space`); validation blocks an empty combo |
+| `keys` | string | `""` | combo | `kind: key` → the combo to press; `kind: click` → optional keys held **during** the click (`ctrl+click`, `shift+click`). A lone modifier is valid (`shift`). |
 | `holdUntilStop` | bool | `false` | — | press the button/key and **keep it down until Stop**. Must be the last enabled module, with loop `once` ([§3.1](#31-execution-semantics)) |
 | `count` | int | `1` | 1–1000 | actions per pass (burst size, *not* a rate) |
 | `holdMs` | int (ms) | `10` | 0–1000 | how long the button/key stays down per action |
@@ -900,7 +902,9 @@ Expanding a card (or its menu → Expand) reveals the edit row:
 
 ```
 click: label [            ]  target ( ▪ absolute  ○ cursor )  pick ⌖  x [940] y [520]
+       held keys [ ctrl ] OK / Cancel   (optional; held during the click)
        button [ left ▼ ]   count [ 3 ]   delay [ 90 ] ms   hold [ 10 ] ms
+       [ ] Hold until Stop (last enabled step; needs loop once)
 
 key:   label [            ]  keys [ ctrl+c ]  OK / Cancel  (focus, press the combo, confirm)
        count [ 1 ]   delay [ 50 ] ms   hold [ 10 ] ms
@@ -1042,7 +1046,9 @@ field, number input, textarea, select or `contenteditable`**, and while a dialog
 or the picker overlay owns focus. Without this, typing a label or a coordinate would
 toggle or delete modules. `Esc` closes the topmost overlay/dialog and does nothing when
 none is open. During a run the UI is locked ([§3.1](#31-execution-semantics)), so only
-F8/F9 are live.
+F8/F9 are live. The in-window matcher tolerates **extra** held modifiers (a hold module
+may leave Shift/Ctrl down, and Stop must still match), while every modifier named in the
+trigger is required.
 
 ### 5.9 Self-update
 
@@ -1392,7 +1398,7 @@ portable archives, mouse and keyboard operation.
 | Run history | ✅ done | append-only `runs.jsonl`, capped by a Settings count (`runHistoryLimit`) |
 | Delay humanization | ✅ done | profile `humanize` scales every fixed delay by ±25% |
 | Docs / lint | ✅ done | DESIGN §10 packaging row fixed; ESLint wired into CI |
-| Keyboard actions (key modules) | ✅ done | `kind: key` presses a combo (target/button unused), same count/hold/delay; capture UI, validation and x11/libei/win injection |
+| Keyboard actions (key modules) | ✅ done | `kind: key` presses a combo (target/button unused); lone modifiers allowed; click modules can hold keys during the click (`ctrl+click`); capture UI, validation and x11/libei/win injection |
 | App keyboard navigation | open | select and operate modules/groups without the mouse; needs a focus/selection model and a shortcut map |
 | Hold action | ✅ done | `holdUntilStop`: mouse or key stays down until Stop; validated as the last enabled action with loop `once` |
 | Single app folder | ✅ done | `app.log`, `settings.json`, `runs.jsonl` in the app root; profiles in `profiles/`; startup migration; one Open app folder button |

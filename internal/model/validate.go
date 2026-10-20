@@ -87,6 +87,11 @@ func Validate(p *Profile, current Desktop) []Issue {
 				add(Blocking, m.ID, "keys", "%s: %v", label, err)
 			}
 		case KindClick, "":
+			if m.Keys != "" {
+				if _, _, err := ParseKeyCombo(m.Keys); err != nil {
+					add(Blocking, m.ID, "keys", "%s: %v", label, err)
+				}
+			}
 			switch m.Button {
 			case ButtonLeft, ButtonRight, ButtonMiddle:
 			case ButtonNone:
@@ -251,6 +256,9 @@ func (m Module) Summary() string {
 	} else {
 		fmt.Fprintf(&b, " %s ×%d", m.Button, m.Count)
 		fmt.Fprintf(&b, " hold %dms", m.HoldMs)
+	}
+	if m.Keys != "" {
+		fmt.Fprintf(&b, " with %s", m.Keys)
 	}
 	if m.DelayAfter > 0 {
 		fmt.Fprintf(&b, " delay %dms", m.DelayAfter)

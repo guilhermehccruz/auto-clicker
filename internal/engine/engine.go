@@ -375,6 +375,11 @@ func (e *Engine) runModule(ctx context.Context, m model.Module) error {
 				if moveOnly {
 					return errors.New("engine: hold cannot be move-only")
 				}
+				if m.Keys != "" {
+					if err := e.drv.KeyDown(m.Keys); err != nil {
+						return wrapInjection(err)
+					}
+				}
 				if m.Target.Kind == model.TargetAbsolute {
 					if err := e.drv.Move(m.Target.X, m.Target.Y); err != nil {
 						return wrapInjection(err)
@@ -395,23 +400,33 @@ func (e *Engine) runModule(ctx context.Context, m model.Module) error {
 				return wrapInjection(err)
 			}
 		} else {
+			// A click module may hold key(s) during the click ("ctrl+click").
+			withKeys := m.Keys != ""
+			if withKeys {
+				if err := e.drv.KeyDown(m.Keys); err != nil {
+					return wrapInjection(err)
+				}
+			}
+			var clickErr error
 			switch {
 			case moveOnly:
 				// "Move only": no button event. Meaningless for a cursor target
 				// (validation warns), so only absolute targets do anything.
 				if m.Target.Kind == model.TargetAbsolute {
-					if err := e.drv.Move(m.Target.X, m.Target.Y); err != nil {
-						return wrapInjection(err)
-					}
+					clickErr = e.drv.Move(m.Target.X, m.Target.Y)
 				}
 			case m.Target.Kind == model.TargetAbsolute:
-				if err := e.drv.ClickAt(m.Target.X, m.Target.Y, btn, hold); err != nil {
-					return wrapInjection(err)
-				}
+				clickErr = e.drv.ClickAt(m.Target.X, m.Target.Y, btn, hold)
 			default:
-				if err := e.drv.ClickHere(btn, hold); err != nil {
-					return wrapInjection(err)
+				clickErr = e.drv.ClickHere(btn, hold)
+			}
+			if withKeys {
+				if upErr := e.drv.KeyUp(m.Keys); upErr != nil && clickErr == nil {
+					clickErr = upErr
 				}
+			}
+			if clickErr != nil {
+				return wrapInjection(clickErr)
 			}
 		}
 		e.mu.Lock()

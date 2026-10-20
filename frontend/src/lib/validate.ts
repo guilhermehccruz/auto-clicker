@@ -42,12 +42,17 @@ export function validateProfile(p: Profile, current: Display): Issue[] {
       if (!validKeyCombo(m.keys)) {
         issues.push({ level: "blocking", moduleId: m.id, field: "keys", message: `${name}: record a key combo` });
       }
-    } else if (m.target.kind === "absolute") {
-      const { x, y } = m.target;
-      if (effectiveEnabled && (x === undefined || y === undefined)) {
-        issues.push({ level: "blocking", moduleId: m.id, field: "target", message: `${name}: absolute target has no coordinates` });
-      } else if (effectiveEnabled && current.width > 0 && (x! < 0 || y! < 0 || x! >= current.width || y! >= current.height)) {
-        issues.push({ level: "warning", moduleId: m.id, field: "target", message: `${name}: (${x}, ${y}) is outside the current desktop` });
+    } else {
+      if (m.keys && !validKeyCombo(m.keys)) {
+        issues.push({ level: "blocking", moduleId: m.id, field: "keys", message: `${name}: invalid held-key combo` });
+      }
+      if (m.target.kind === "absolute") {
+        const { x, y } = m.target;
+        if (effectiveEnabled && (x === undefined || y === undefined)) {
+          issues.push({ level: "blocking", moduleId: m.id, field: "target", message: `${name}: absolute target has no coordinates` });
+        } else if (effectiveEnabled && current.width > 0 && (x! < 0 || y! < 0 || x! >= current.width || y! >= current.height)) {
+          issues.push({ level: "warning", moduleId: m.id, field: "target", message: `${name}: (${x}, ${y}) is outside the current desktop` });
+        }
       }
     }
 
@@ -115,6 +120,7 @@ export function hasBlocking(issues: Issue[]): boolean {
 const KEY_NAMES = new Set([
   "space", "enter", "tab", "esc", "backspace", "delete", "insert", "home",
   "end", "pageup", "pagedown", "up", "down", "left", "right", "capslock",
+  "ctrl", "shift", "alt", "cmd",
 ]);
 
 // validKeyCombo mirrors Go's model.ParseKeyCombo.

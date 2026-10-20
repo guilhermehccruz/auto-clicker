@@ -15,6 +15,8 @@ var namedKeys = map[string]bool{
 	"insert": true, "home": true, "end": true, "pageup": true,
 	"pagedown": true, "up": true, "down": true, "left": true, "right": true,
 	"capslock": true, "print": true, "printscreen": true, "menu": true,
+	// A lone modifier is a valid key action ("press and hold shift").
+	"ctrl": true, "shift": true, "alt": true, "cmd": true,
 }
 
 // ParseKeyCombo parses a key combo such as "ctrl+shift+c" or "f5" into its

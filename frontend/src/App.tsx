@@ -28,16 +28,18 @@ function keyName(e: KeyboardEvent): string {
 }
 
 // matchesTrigger compares a KeyboardEvent against a canonical trigger such as
-// "CTRL+SHIFT+F8". Used so the in-window shortcuts follow rebinding.
+// "CTRL+SHIFT+F8". Required modifiers must be held, but extra modifiers are
+// tolerated: a hold module can leave Shift/Ctrl down, and Stop/Pause must still
+// match rather than becoming Shift+F8.
 function matchesTrigger(e: KeyboardEvent, trigger?: string): boolean {
   if (!trigger) return false;
   const parts = trigger.toUpperCase().split("+");
   const key = parts.pop() ?? "";
   const mods = new Set(parts);
-  if (e.ctrlKey !== mods.has("CTRL")) return false;
-  if (e.shiftKey !== mods.has("SHIFT")) return false;
-  if (e.altKey !== mods.has("ALT")) return false;
-  if (e.metaKey !== mods.has("LOGO")) return false;
+  if (mods.has("CTRL") && !e.ctrlKey) return false;
+  if (mods.has("SHIFT") && !e.shiftKey) return false;
+  if (mods.has("ALT") && !e.altKey) return false;
+  if (mods.has("LOGO") && !e.metaKey) return false;
   return keyName(e) === key;
 }
 
@@ -286,6 +288,7 @@ export default function App() {
                   </div>
                 )}
                 <ModuleList
+                  key={profiles.selectedId ?? "none"}
                   modules={profile.modules}
                   groups={profile.groups}
                   issues={profiles.issues}

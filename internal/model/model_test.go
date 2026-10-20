@@ -285,6 +285,8 @@ func TestParseKeyCombo(t *testing.T) {
 	}{
 		{"ctrl+shift+c", "c", "ctrl,shift", true},
 		{"F5", "f5", "", true},
+		{"ctrl", "ctrl", "", true},
+		{"shift", "shift", "", true},
 		{"super+space", "space", "cmd", true},
 		{"control+alt+delete", "delete", "ctrl,alt", true},
 		{"ctrl+", "", "", false},

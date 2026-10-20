@@ -292,6 +292,39 @@ func TestKeyModulePressesKeys(t *testing.T) {
 	}
 }
 
+func TestClickWithHeldKeys(t *testing.T) {
+	m := model.NewModule()
+	m.Target = model.NewAbsoluteTarget(10, 10)
+	m.Keys = "ctrl"
+	m.Count = 1
+	m.HoldMs = 0
+	m.DelayAfter = 0
+
+	drv := input.NewFake()
+	e := New(drv, WithClock(newAutoClock()))
+	if err := e.Run(onceProfile(m)); err != nil {
+		t.Fatal(err)
+	}
+	waitIdle(t, e)
+
+	var ops []string
+	for _, c := range drv.Calls {
+		if c.Op == "ReleaseAll" {
+			continue
+		}
+		ops = append(ops, c.Op)
+	}
+	want := []string{"KeyDown", "ClickAt", "KeyUp"}
+	if len(ops) != len(want) {
+		t.Fatalf("ops = %v, want %v", ops, want)
+	}
+	for i := range want {
+		if ops[i] != want[i] {
+			t.Errorf("op[%d] = %s, want %s", i, ops[i], want[i])
+		}
+	}
+}
+
 func TestHoldUntilStopReleases(t *testing.T) {
 	m := model.NewKeyModule()
 	m.Keys = "w"

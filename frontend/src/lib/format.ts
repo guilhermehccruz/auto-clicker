@@ -19,6 +19,7 @@ export function summary(m: Module): string {
   }
   let out = `${target} ${m.button} ×${m.count}`;
   out += ` hold ${m.holdMs}ms`;
+  if (m.keys) out += ` with ${m.keys}`;
   if (m.delayAfter > 0) out += ` delay ${m.delayAfter}ms`;
   if (m.holdUntilStop) out += " hold until stop";
   return out;
