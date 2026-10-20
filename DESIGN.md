@@ -937,7 +937,7 @@ Three distinct states, deliberately worded differently:
 
 | State | Presentation |
 |---|---|
-| Profile has **0 modules** | Empty-state panel in the list area: "No clicks yet." + primary `+ Add click` button + one-line explainer ("Each click is one step; enabled steps run top to bottom.") |
+| Profile has **0 modules** | Empty-state panel in the list area: "No steps yet." + `+ Add click` and `+ Add key` buttons + one-line explainer ("Each step is one action; enabled steps run top to bottom.") |
 | Profile has modules but **0 enabled** | Muted `amber` row: `⚠ No modules enabled — enable at least one to run`. **Run is disabled**, with that sentence as its tooltip. The hotkey no-ops. |
 | Profile is **invalid** (field out of range, missing coordinates) | Same amber row pattern, listing each issue next to the offending card; Run disabled |
 

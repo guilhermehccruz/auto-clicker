@@ -279,7 +279,7 @@ export default function App() {
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
             {profile && <WarningBanner issues={profiles.issues} onUpdateSnapshot={snapshotDisplay} />}
             {profile && profile.modules.length === 0 && profile.groups.length === 0 ? (
-              <EmptyState onAdd={() => addModule()} />
+              <EmptyState onAdd={(kind) => addModule(UNGROUPED, kind)} />
             ) : profile ? (
               <>
                 {blocking && (
