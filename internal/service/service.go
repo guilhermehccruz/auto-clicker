@@ -219,9 +219,17 @@ func (s *Service) ListProfiles() ([]store.Summary, []store.ProblemFile, error) {
 	return s.store.List()
 }
 
-// LoadProfile loads one profile.
+// LoadProfile loads one profile and remembers it as selected, so global
+// hotkeys run the profile the UI is showing (and a restart restores it).
 func (s *Service) LoadProfile(id string) (*model.Profile, error) {
-	return s.store.Load(id)
+	p, err := s.store.Load(id)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.selectProfile(id); err != nil {
+		log.Printf("service: remember selected profile: %v", err)
+	}
+	return p, nil
 }
 
 // SaveProfile writes a profile and remembers it as selected.

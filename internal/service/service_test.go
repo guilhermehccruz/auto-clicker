@@ -51,6 +51,38 @@ func waitState(t *testing.T, s *Service, want engine.State) {
 	t.Fatalf("state never became %s (got %s)", want, s.Status().State)
 }
 
+func TestLoadProfileRemembersSelection(t *testing.T) {
+	s := newTestService(t, input.NewFake())
+	a, err := s.CreateProfile("A")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := s.CreateProfile("B")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := s.LoadProfile(a); err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	selected, saved := s.selected, s.settings.SelectedProfile
+	s.mu.Unlock()
+	if selected != a || saved != a {
+		t.Fatalf("after loading A: selected=%q saved=%q", selected, saved)
+	}
+
+	if _, err := s.LoadProfile(b); err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	selected = s.selected
+	s.mu.Unlock()
+	if selected != b {
+		t.Fatalf("after loading B: selected=%q, want %q", selected, b)
+	}
+}
+
 func TestCreateSaveAndRun(t *testing.T) {
 	drv := input.NewFake()
 	s := newTestService(t, drv)

@@ -154,7 +154,8 @@ export function ListProfiles(): $CancellablePromise<[store$0.Summary[] | null, s
 }
 
 /**
- * LoadProfile loads one profile.
+ * LoadProfile loads one profile and remembers it as selected, so global
+ * hotkeys run the profile the UI is showing (and a restart restores it).
  */
 export function LoadProfile(id: string): $CancellablePromise<model$0.Profile | null> {
     return $Call.ByID(2671609438, id);

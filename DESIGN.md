@@ -522,6 +522,8 @@ Rules:
 - **One-time layout migration.** On startup, profile `.json` files found in the app root
   are moved into `profiles/` (settings.json and runs.jsonl stay in the root). If both
   copies exist, `profiles/` wins and the root copy is left untouched, never deleted.
+- **The selected profile is global state.** Opening a profile in the UI persists it in
+  `settings.selectedProfile`; the global Run hotkey and the next launch use that profile.
 - **The filename is the profile id**: `slug(name).json`, e.g. `idle-tycoon.json`.
   Slugify is deterministic: lowercase → NFKD-fold and strip diacritics → replace every run
   of non-`[a-z0-9]` with `-` → trim leading/trailing `-` → truncate to 64 chars. An empty
