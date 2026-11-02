@@ -112,12 +112,24 @@ export function useProfiles(api: Api): ProfilesState {
     (async () => {
       try {
         const list = await refresh();
-        if (list.length > 0) await select(list[0].id);
+        if (list.length === 0) return;
+        // Restore the profile that was active on the last run (settings.json);
+        // fall back to the first readable profile.
+        let id = list[0].id;
+        try {
+          const st = await api.getSettings();
+          if (st.selectedProfile && list.some((p) => p.id === st.selectedProfile)) {
+            id = st.selectedProfile;
+          }
+        } catch {
+          // keep the first profile
+        }
+        await select(id);
       } catch (e) {
         setError(String(e));
       }
     })();
-  }, [refresh, select]);
+  }, [api, refresh, select]);
 
   const persist = useCallback(
     async (p: Profile) => {
